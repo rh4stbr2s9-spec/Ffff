@@ -1,0 +1,2487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>КиберЩит: Не ведись! — Интерактивный тренажёр безопасности</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a 60%, #020617);
+            color: #f8fafc;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Кастомный скроллбар для чата */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.4);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.8);
+        }
+
+        /* Анимации сообщений */
+        @keyframes popIn {
+            0% { opacity: 0; transform: translateY(12px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .msg-anim {
+            animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); }
+            50% { box-shadow: 0 0 28px rgba(99, 102, 241, 0.7); }
+        }
+        .glow-btn {
+            animation: pulseGlow 2.5s infinite;
+        }
+
+        /* Точки набора текста */
+        .typing-dot {
+            animation: typingBounce 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typingBounce {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Паттерн фона мессенджера */
+        .chat-bg {
+            background-color: #0f172a;
+            background-image: radial-gradient(rgba(99, 102, 241, 0.12) 1px, transparent 1px),
+                              radial-gradient(rgba(14, 165, 233, 0.08) 1px, #0f172a 1px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+        }
+
+        .red-flag-highlight {
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px dashed rgba(244, 63, 94, 0.5);
+        }
+        .red-flag-highlight:hover {
+            background: rgba(244, 63, 94, 0.2);
+        }
+        .red-flag-found {
+            background: rgba(244, 63, 94, 0.3) !important;
+            border-bottom: 2px solid #f43f5e !important;
+            color: #fda4af;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen selection:bg-indigo-500 selection:text-white">
+
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ -->
+    <header class="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="showScreen('hub')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <i class="fa-solid fa-shield-halved text-white text-xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-extrabold text-lg tracking-tight text-white">КиберЩит</h1>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">5–7 класс</span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">Интерактивный симулятор антитеррористической и цифровой безопасности</p>
+                </div>
+            </div>
+
+            <!-- Статус игрока и кнопки управления -->
+            <div class="flex items-center gap-2 sm:gap-4">
+                <div id="agentBadge" class="hidden sm:flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3 py-1.5 rounded-xl">
+                    <i class="fa-solid fa-user-secret text-cyan-400"></i>
+                    <span id="headerAgentName" class="text-sm font-medium text-slate-200">Агент</span>
+                    <span class="text-slate-600">|</span>
+                    <div class="flex items-center gap-1 text-amber-400 font-bold text-sm" title="Очки КиберИммунитета">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span id="headerScore">0</span>
+                    </div>
+                </div>
+
+                <!-- Кнопка мини-игры "Детектор" -->
+                <button onclick="showScreen('detector')" class="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i>
+                    <span class="hidden md:inline">Детектор уловок</span>
+                </button>
+
+                <!-- Кнопка Памятки -->
+                <button onclick="openModal('rulesModal')" class="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-book-medical"></i>
+                    <span class="hidden md:inline">Кодекс защиты</span>
+                </button>
+
+                <!-- Кнопка для учителя -->
+                <button onclick="openModal('teacherModal')" class="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-xs sm:text-sm font-semibold transition flex items-center gap-1.5" title="Методические подсказки для учителя или родителя">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span class="hidden lg:inline">Учителю</span>
+                </button>
+
+                <!-- Звук -->
+                <button id="soundToggleBtn" onclick="toggleSound()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center justify-center transition" title="Включить/выключить звук">
+                    <i id="soundIcon" class="fa-solid fa-volume-high text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ОСНОВНОЙ КОНТЕЙНЕР -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 flex flex-col justify-center">
+
+        <!-- ЭКРАН 1: ПРИВЕТСТВИЕ И РЕГИСТРАЦИЯ АГЕНТА -->
+        <section id="screen-welcome" class="max-w-2xl mx-auto w-full">
+            <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+                <!-- Декоративное свечение -->
+                <div class="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-cyan-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="relative z-10 text-center">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-4">
+                        <i class="fa-solid fa-satellite-dish animate-pulse"></i>
+                        СИМУЛЯТОР РЕАЛЬНЫХ СИТУАЦИЙ
+                    </div>
+                    <h2 class="text-2xl sm:text-4xl font-extrabold text-white mb-4 leading-tight">
+                        Смартфон — твоя крепость.<br>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Или ловушка?</span>
+                    </h2>
+                    <p class="text-slate-300 text-sm sm:text-base mb-6 leading-relaxed">
+                        Каждый день преступники и вербовщики ищут подростков в мессенджерах и играх. Они обещают <b>«лёгкие деньги за простой квест»</b>, притворяются друзьями или пытаются запугать. Проверь, сможешь ли ты распознать манипуляцию и не дать сломать свою жизнь!
+                    </p>
+
+                    <!-- Ввод позывного -->
+                    <div class="bg-slate-800/70 border border-slate-700/80 rounded-2xl p-5 mb-6 text-left">
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                            <i class="fa-solid fa-id-card mr-1 text-indigo-400"></i> Выбери позывной стажёра (своё настоящее имя в сети можно не указывать!):
+                        </label>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input id="agentNameInput" type="text" maxlength="20" placeholder="Например: КиберЛис, Страж_07..." 
+                                class="flex-1 bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:outline-none rounded-xl px-4 py-3 text-white font-medium placeholder:text-slate-500">
+                            <button onclick="generateRandomNickname()" class="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition flex items-center justify-center gap-2 shrink-0">
+                                <i class="fa-solid fa-dice"></i> Случайный
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Карточки того, что ждет внутри -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7 text-left">
+                        <div class="bg-slate-800/40 border border-slate-800 p-3.5 rounded-xl">
+                            <div class="text-cyan-400 text-lg mb-1"><i class="fa-brands fa-telegram"></i></div>
+                            <div class="font-bold text-sm text-white">5 живых чатов</div>
+                            <div class="text-xs text-slate-400 mt-0.5">Неочевидные переписки, где легко попасться на крючок</div>
+                        </div>
+                        <div class="bg-slate-800/40 border border-slate-800 p-3.5 rounded-xl">
+                            <div class="text-rose-400 text-lg mb-1"><i class="fa-solid fa-flag"></i></div>
+                            <div class="font-bold text-sm text-white">Скрытые уловки</div>
+                            <div class="text-xs text-slate-400 mt-0.5">Проверяй профили и смотри, как работают манипуляции</div>
+                        </div>
+                        <div class="bg-slate-800/40 border border-slate-800 p-3.5 rounded-xl">
+                            <div class="text-amber-400 text-lg mb-1"><i class="fa-solid fa-award"></i></div>
+                            <div class="font-bold text-sm text-white">Разбор полётов</div>
+                            <div class="text-xs text-slate-400 mt-0.5">Узнай, как выйти сухим из воды, даже если уже ответил</div>
+                        </div>
+                    </div>
+
+                    <button onclick="startGame()" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-base shadow-xl shadow-indigo-600/30 transition transform hover:-translate-y-0.5 glow-btn">
+                        Войти в виртуальный смартфон <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 2: ГЛАВНЫЙ ХАБ И ЧАТ-СИМУЛЯТОР -->
+        <section id="screen-hub" class="hidden w-full">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- ЛЕВАЯ КОЛОНКА: СПИСОК ЧАТОВ (МИССИЙ) И ПРОГРЕСС -->
+                <div class="lg:col-span-4 bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shadow-xl flex flex-col">
+                    <!-- Шапка мессенджера -->
+                    <div class="p-4 bg-slate-800/60 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-3 h-3 rounded-full bg-rose-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                            <span class="ml-1 font-bold text-sm text-slate-200 flex items-center gap-1.5">
+                                <i class="fa-solid fa-paper-plane text-indigo-400"></i> ТелеГраф Мессенджер
+                            </span>
+                        </div>
+                        <span id="completedCountBadge" class="text-xs font-mono bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-500/30">
+                            0/5 пройдено
+                        </span>
+                    </div>
+
+                    <!-- Подсказка -->
+                    <div class="px-4 py-2.5 bg-indigo-950/40 border-b border-indigo-500/20 text-xs text-indigo-200 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-indigo-400 shrink-0"></i>
+                        <span>Выбери чат слева, чтобы начать расследование ситуации.</span>
+                    </div>
+
+                    <!-- Список чатов -->
+                    <div id="missionListContainer" class="divide-y divide-slate-800/70">
+                        <!-- Заполняется через JS -->
+                    </div>
+
+                    <!-- Нижний блок: Переход к детектору или сертификату -->
+                    <div class="p-4 bg-slate-950/60 border-t border-slate-800/80 space-y-2.5">
+                        <button onclick="showScreen('detector')" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs sm:text-sm font-semibold transition flex items-center justify-between">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-highlighter text-rose-400"></i>
+                                Тренажёр «Найди уловку в тексте»
+                            </span>
+                            <i class="fa-solid fa-chevron-right text-slate-400 text-xs"></i>
+                        </button>
+
+                        <button id="certBtn" onclick="showScreen('certificate')" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold transition flex items-center justify-between">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid fa-trophy text-amber-400"></i>
+                                Итоги и Сертификат Агента
+                            </span>
+                            <i class="fa-solid fa-chevron-right text-amber-400 text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ПРАВАЯ КОЛОНКА: ОКНО АКТИВНОГО ЧАТА (СМАРТФОН) -->
+                <div class="lg:col-span-8 bg-slate-900/95 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-[640px] max-h-[82vh] relative">
+                    
+                    <!-- Заглушка, если чат еще не выбран -->
+                    <div id="emptyChatState" class="flex-1 flex flex-col items-center justify-center p-8 text-center chat-bg">
+                        <div class="w-20 h-20 rounded-3xl bg-slate-800/90 border border-slate-700 flex items-center justify-center mb-4 shadow-inner">
+                            <i class="fa-solid fa-comments text-3xl text-indigo-400"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-white mb-2">Выбери чат слева</h3>
+                        <p class="text-slate-400 text-sm max-w-md mb-6">
+                            В мессенджере 5 непрочитанных диалогов. Читай внимательно: преступники редко пишут в лоб, обычно всё начинается с безобидной просьбы.
+                        </p>
+                        <button onclick="selectMission(0)" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition">
+                            Открыть первый чат <i class="fa-solid fa-play ml-1.5 text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- Активный интерфейс чата -->
+                    <div id="activeChatWrapper" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+                        
+                        <!-- Шапка чата с профилем собеседника -->
+                        <div class="px-4 py-3 bg-slate-800/90 border-b border-slate-700/80 flex items-center justify-between gap-2 shrink-0">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div id="chatAvatar" class="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md">
+                                    ?
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <h3 id="chatTitle" class="font-bold text-white text-sm sm:text-base truncate">Имя</h3>
+                                        <span id="chatRiskTag" class="text-[11px] px-2 py-0.5 rounded-md font-semibold">Статус</span>
+                                        <span class="hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> ИИ-чат
+                                        </span>
+                                    </div>
+                                    <p id="chatSubtitle" class="text-xs text-slate-400 truncate">в сети</p>
+                                </div>
+                            </div>
+
+                            <!-- Кнопки действий в шапке чата -->
+                            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                <button onclick="restartCurrentMission()" class="px-2.5 py-2 rounded-xl bg-slate-700/60 hover:bg-slate-700 border border-slate-600/60 text-slate-300 text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Начать этот диалог с самого начала">
+                                    <i class="fa-solid fa-rotate-right"></i>
+                                    <span class="hidden xl:inline">Сначала</span>
+                                </button>
+                                <button onclick="blockCurrentContact()" class="px-2.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 text-xs font-bold transition flex items-center gap-1.5 shadow-sm" title="Сделать скриншот переписки и заблокировать">
+                                    <i class="fa-solid fa-ban"></i>
+                                    <span class="hidden sm:inline">Скрин + В ЧС</span>
+                                </button>
+                                <button onclick="inspectProfile()" class="px-3 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/40 text-cyan-300 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-radar animate-spin" style="animation-duration: 4s;"></i>
+                                    <span class="hidden sm:inline">Профиль</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Лента сообщений -->
+                        <div id="chatMessages" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 chat-bg">
+                            <!-- Сообщения добавляются динамически -->
+                        </div>
+
+                        <!-- Индикатор "печатает..." -->
+                        <div id="typingIndicator" class="hidden px-6 py-2 bg-slate-900/90 border-t border-slate-800/60 text-xs text-slate-400 flex items-center gap-2">
+                            <div class="flex gap-1 bg-slate-800 px-2.5 py-1.5 rounded-full">
+                                <span class="w-1.5 h-1.5 bg-indigo-400 rounded-full typing-dot"></span>
+                                <span class="w-1.5 h-1.5 bg-indigo-400 rounded-full typing-dot"></span>
+                                <span class="w-1.5 h-1.5 bg-indigo-400 rounded-full typing-dot"></span>
+                            </div>
+                            <span id="typingText">Собеседник печатает...</span>
+                        </div>
+
+                        <!-- Панель ввода сообщения + быстрые подсказки -->
+                        <div id="choicesContainer" class="p-3 sm:p-4 bg-slate-900 border-t border-slate-800 shrink-0 space-y-2.5">
+                            <!-- Динамические чипсы-подсказки -->
+                            <div>
+                                <div class="text-[11px] font-semibold text-slate-400 mb-1.5 flex items-center justify-between">
+                                    <span><i class="fa-solid fa-wand-magic-sparkles mr-1 text-indigo-400"></i> Идеи ответа (или напиши любой свой текст ниже):</span>
+                                    <span id="aiEngineStatus" class="text-[10px] text-cyan-400 font-normal">Бот подстраивается под твой текст</span>
+                                </div>
+                                <div id="choicesButtons" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                                    <!-- Кнопки быстрых ответов или финала -->
+                                </div>
+                            </div>
+
+                            <!-- Свободный ввод текста как в настоящем Telegram -->
+                            <div id="freeInputBar" class="flex items-center gap-2 pt-1">
+                                <div class="relative flex-1">
+                                    <input id="chatFreeInput" type="text" maxlength="220"
+                                        placeholder="Напиши сообщение своими словами..."
+                                        onkeydown="if(event.key === 'Enter') sendCustomUserMessage()"
+                                        class="w-full bg-slate-950 border border-slate-700/90 focus:border-indigo-500 focus:outline-none rounded-xl pl-3.5 pr-10 py-2.5 text-xs sm:text-sm text-white placeholder:text-slate-500 transition">
+                                </div>
+                                <button id="sendMsgBtn" onclick="sendCustomUserMessage()"
+                                    class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs sm:text-sm transition flex items-center gap-1.5 shrink-0 shadow-md">
+                                    <span>Отправить</span>
+                                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ОВЕРЛЕЙ ДОСЬЕ ПРОФИЛЯ (Сканер аккаунта) -->
+                    <div id="profileInspectorModal" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-md z-20 flex items-center justify-center p-4">
+                        <div class="bg-slate-900 border border-cyan-500/40 rounded-3xl max-w-md w-full p-6 shadow-2xl relative msg-anim">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                                <div class="flex items-center gap-2 text-cyan-400 font-bold text-sm uppercase tracking-wider">
+                                    <i class="fa-solid fa-microscope"></i> КиберСканер аккаунта
+                                </div>
+                                <button onclick="closeProfileInspector()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div id="inspectorContent" class="space-y-3 text-sm">
+                                <!-- Заполняется через JS -->
+                            </div>
+                            <div class="mt-5 pt-3 border-t border-slate-800 flex justify-end">
+                                <button onclick="closeProfileInspector()" class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold transition">
+                                    Понятно, вернуться в чат
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 3: МИНИ-ИГРА "ДЕТЕКТОР УЛОВОК" (Найди красные флаги в сообщениях) -->
+        <section id="screen-detector" class="hidden max-w-4xl mx-auto w-full">
+            <div class="bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-6">
+                    <div>
+                        <div class="inline-flex items-center gap-1.5 text-rose-400 text-xs font-bold uppercase tracking-wider mb-1">
+                            <i class="fa-solid fa-bullseye"></i> Спецтренажёр внимания
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold text-white">Детектор манипуляций: Найди «Красные флаги»</h2>
+                    </div>
+                    <button onclick="showScreen('hub')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-left"></i> Назад к чатам
+                    </button>
+                </div>
+
+                <p class="text-slate-300 text-sm mb-6 bg-slate-800/60 border border-slate-700/80 p-4 rounded-2xl">
+                    <i class="fa-solid fa-hand-pointer text-amber-400 mr-1.5"></i>
+                    <b>Задача:</b> Прочитай перехваченное сообщение от вербовщика и <b>нажми на все подозрительные фразы</b> (обещание нелегальных денег, секретность от родителей, ложь о безнаказанности, срочность).
+                </p>
+
+                <!-- Переключатель карточек детектора -->
+                <div class="flex items-center justify-between mb-4">
+                    <span id="detectorProgressText" class="text-xs font-mono text-indigo-300 bg-indigo-500/15 px-3 py-1 rounded-lg border border-indigo-500/30">
+                        Перехват #1 из 3
+                    </span>
+                    <span id="flagsFoundCounter" class="text-xs font-bold text-rose-300 bg-rose-500/15 px-3 py-1 rounded-lg border border-rose-500/30">
+                        Найдено уловок: 0 / 4
+                    </span>
+                </div>
+
+                <!-- Блок текста с кликабельными фразами -->
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-5 sm:p-6 mb-5 shadow-inner">
+                    <div class="flex items-center gap-2.5 mb-3 pb-2 border-b border-slate-800/80 text-xs text-slate-400">
+                        <i class="fa-solid fa-user-ninja text-rose-400"></i>
+                        <span id="detectorSender" class="font-bold text-slate-300">Отправитель: Неизвестный куратор</span>
+                    </div>
+                    <div id="detectorTextBody" class="text-base sm:text-lg leading-relaxed text-slate-200 space-y-2">
+                        <!-- Генерируется через JS -->
+                    </div>
+                </div>
+
+                <!-- Пояснение к найденной уловке -->
+                <div id="flagExplanationBox" class="min-h-[84px] bg-slate-800/50 border border-slate-700/70 rounded-2xl p-4 mb-6 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </div>
+                    <div id="flagExplanationText" class="text-sm text-slate-300">
+                        Нажимай на выделенные пунктиром фразы в сообщении выше, чтобы расшифровать, как именно преступник пытается обмануть подростка.
+                    </div>
+                </div>
+
+                <!-- Навигация по примерам -->
+                <div class="flex items-center justify-between">
+                    <button onclick="prevDetectorCard()" id="prevDetectorBtn" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 text-sm font-semibold transition">
+                        <i class="fa-solid fa-chevron-left mr-1"></i> Предыдущий
+                    </button>
+                    <button onclick="nextDetectorCard()" id="nextDetectorBtn" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition">
+                        Следующий перехват <i class="fa-solid fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ЭКРАН 4: СЕРТИФИКАТ И ИТОГИ -->
+        <section id="screen-certificate" class="hidden max-w-3xl mx-auto w-full">
+            <div class="bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl text-center relative overflow-hidden">
+                <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="relative z-10">
+                    <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 mx-auto flex items-center justify-center text-slate-950 text-4xl shadow-xl shadow-amber-500/20 mb-4">
+                        <i class="fa-solid fa-shield-cat"></i>
+                    </div>
+                    <div class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-1">Удостоверение Кибербезопасности</div>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">
+                        Стажёр: <span id="certAgentName" class="text-cyan-400">Агент</span>
+                    </h2>
+                    <p id="certRankTitle" class="text-sm text-slate-300 mb-6">Звание: Защитник сети</p>
+
+                    <!-- Статистика -->
+                    <div class="grid grid-cols-3 gap-3 max-w-lg mx-auto mb-8">
+                        <div class="bg-slate-800/80 border border-slate-700 p-3.5 rounded-2xl">
+                            <div id="certMissionsDone" class="text-2xl font-extrabold text-emerald-400">0/5</div>
+                            <div class="text-xs text-slate-400 mt-1">Чатов пройдено</div>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700 p-3.5 rounded-2xl">
+                            <div id="certTotalScore" class="text-2xl font-extrabold text-amber-400">0</div>
+                            <div class="text-xs text-slate-400 mt-1">Очков опыта</div>
+                        </div>
+                        <div class="bg-slate-800/80 border border-slate-700 p-3.5 rounded-2xl">
+                            <div id="certFlagsCount" class="text-2xl font-extrabold text-rose-400">0</div>
+                            <div class="text-xs text-slate-400 mt-1">Уловок найдено</div>
+                        </div>
+                    </div>
+
+                    <!-- Главные выводы (Клятва безопасности) -->
+                    <div class="bg-slate-950/90 border border-indigo-500/30 rounded-2xl p-5 text-left mb-7 space-y-3">
+                        <div class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2">
+                            <i class="fa-solid fa-check-double mr-1"></i> Главные правила, которые сохранят тебе свободу и жизнь:
+                        </div>
+                        <div class="flex items-start gap-2.5 text-xs sm:text-sm text-slate-200">
+                            <i class="fa-solid fa-circle-check text-emerald-400 mt-1 shrink-0"></i>
+                            <span><b>Никаких «квестов» с поджогами и порчей имущества:</b> за поджог релейного шкафа, здания или двери за деньги дают реальный тюремный срок до 20 лет (статья «Диверсия» или «Терроризм»).</span>
+                        </div>
+                        <div class="flex items-start gap-2.5 text-xs sm:text-sm text-slate-200">
+                            <i class="fa-solid fa-circle-check text-emerald-400 mt-1 shrink-0"></i>
+                            <span><b>Ложные звонки о бомбах — не шутка:</b> анонимности не существует, звонящего вычисляют за считанные часы, а родителям придётся платить огромный штраф.</span>
+                        </div>
+                        <div class="flex items-start gap-2.5 text-xs sm:text-sm text-slate-200">
+                            <i class="fa-solid fa-circle-check text-emerald-400 mt-1 shrink-0"></i>
+                            <span><b>Если тебя уже запугивают или шантажируют:</b> немедленно расскажи родителям или позвони 112. Если ты вовремя остановился и всё рассказал взрослым — ты в безопасности!</span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                        <button onclick="showScreen('hub')" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition">
+                            <i class="fa-solid fa-rotate-left mr-1.5"></i> Вернуться к миссиям
+                        </button>
+                        <button onclick="resetAllProgress()" class="px-5 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition">
+                            Пройти заново (для другого ученика)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- МОДАЛЬНОЕ ОКНО: КОДЕКС ЗАЩИТЫ (База знаний для детей) -->
+    <div id="rulesModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-3xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden msg-anim">
+            <div class="p-5 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        <i class="fa-solid fa-book-shield"></i>
+                    </div>
+                    <h3 class="font-extrabold text-lg text-white">Кодекс безопасности школьника</h3>
+                </div>
+                <button onclick="closeModal('rulesModal')" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-4 text-sm text-slate-300">
+                <div class="p-4 rounded-2xl bg-rose-950/40 border border-rose-500/30">
+                    <h4 class="font-bold text-rose-300 text-base mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-fire-flame-curved"></i> 1. Почему «просто поджечь ящик за 10 000 ₽» — это ловушка?
+                    </h4>
+                    <p class="leading-relaxed">
+                        Вербовщики в мессенджерах пишут подросткам и предлагают деньги за поджог железных шкафов у железной дороги, военкоматов, машин или дверей. Они врут: <i>«Тебе ничего не будет, ты же несовершеннолетний!»</i>.
+                        <br><br>
+                        <b>Правда:</b> Денег они почти никогда не платят. Зато требуют снять видео, а потом шантажируют этим видео! В законе это называется <b>«Диверсия» или «Террористический акт»</b> — ответственность наступает с 14 лет (до 20 лет лишения свободы), а если младше — постановка на спецучёт, спецшкола и многомиллионные суды для родителей.
+                    </p>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-amber-950/40 border border-amber-500/30">
+                    <h4 class="font-bold text-amber-300 text-base mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-box-open"></i> 2. Нашёл бесхозный рюкзак, коробку или свёрток?
+                    </h4>
+                    <p class="leading-relaxed">
+                        Категорически <b>НЕЛЬЗЯ</b>: пинать предмет, открывать его, брать в руки (даже если это красивый смартфон или кошелёк с деньгами — внутри может быть взрывное устройство!) и пользоваться телефоном прямо над находкой.
+                        <br>
+                        <b>Как надо:</b> Отойди на безопасное расстояние (не менее 50–100 метров), предупреди прохожих и сообщи взрослым, охране или по номеру <b>112</b>.
+                    </p>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30">
+                    <h4 class="font-bold text-indigo-300 text-base mb-1 flex items-center gap-2">
+                        <i class="fa-solid fa-user-lock"></i> 3. Что делать, если ты УЖЕ ответил незнакомцу или скинул свои данные?
+                    </h4>
+                    <p class="leading-relaxed">
+                        Преступники часто действуют в два шага: сначала просят сделать пустяк (сфотографировать здание или назвать номер школы), а потом пугают: <i>«Ты уже соучастник! Если не выполнишь приказ — мы сдадим тебя полиции!»</i>.
+                        <br>
+                        <b>Запомни главное:</b> Это блеф! Если ты еще не совершил преступления и сразу расскажешь обо всём родителям, учителю или полиции — <b>тебя никто не накажет</b>, наоборот, тебя защитят и помогут поймать преступника!
+                    </p>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                        <h4 class="font-bold text-emerald-300 text-base">Экстренные номера помощи</h4>
+                        <p class="text-xs text-slate-300 mt-0.5">Звонок бесплатный с любого телефона, даже без сим-карты и денег на счёте.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <div class="px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-center">
+                            <div class="font-extrabold text-lg text-white mono">112</div>
+                            <div class="text-[10px] text-emerald-300">Служба спасения</div>
+                        </div>
+                        <div class="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-center">
+                            <div class="font-extrabold text-lg text-white mono">8-800-2000-122</div>
+                            <div class="text-[10px] text-cyan-300">Телефон доверия</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-800/80 border-t border-slate-700 flex justify-end">
+                <button onclick="closeModal('rulesModal')" class="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm">
+                    Принято к сведению!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: МЕТОДИЧКА ДЛЯ УЧИТЕЛЯ / РОДИТЕЛЯ -->
+    <div id="teacherModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-amber-500/40 rounded-3xl max-w-2xl w-full max-h-[88vh] flex flex-col shadow-2xl overflow-hidden msg-anim">
+            <div class="p-5 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <h3 class="font-extrabold text-lg text-white">Методическая карточка (для учителя / классного часа)</h3>
+                </div>
+                <button onclick="closeModal('teacherModal')" class="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-4 text-sm text-slate-300 leading-relaxed">
+                <p>
+                    Этот интерактивный тренажёр разработан специально для проведения <b>классного часа, урока ОБЗР (ОБЖ) или «Разговоров о важном»</b> в 1–4 и 5–7 классах без использования скучных презентаций.
+                </p>
+                <div class="bg-slate-800/70 p-4 rounded-2xl border border-slate-700 space-y-2">
+                    <div class="font-bold text-amber-300">Как проводить занятие в классе (20–35 минут):</div>
+                    <ul class="list-disc list-inside space-y-1.5 text-slate-300">
+                        <li><b>На интерактивной доске / проекторе:</b> Запустите приложение на большом экране. Открывайте по очереди каждый из 4 чатов, зачитывайте сообщения по ролям и голосуйте всем классом, какой вариант ответа выбрать.</li>
+                        <li><b>Экспериментируйте с ошибками:</b> Специально покажите детям, что произойдёт, если выбрать опасный ответ (игра покажет «Стоп-кадр» с объяснением ловушки и позволит исправить решение).</li>
+                        <li><b>Ключевой психологический акцент:</b> Обязательно проговорите с детьми Миссию №4 (про шантаж). Дети должны твёрдо знать: <i>даже если они по глупости отправили свои данные или согласились на переписку, обращение к родителям и полиции полностью спасает их от беды, пока преступление не совершено</i>.</li>
+                    </ul>
+                </div>
+                <div class="bg-slate-800/70 p-4 rounded-2xl border border-slate-700 space-y-2">
+                    <div class="font-bold text-cyan-300">Отрабатываемые сценарии:</div>
+                    <ol class="list-decimal list-inside space-y-1 text-xs sm:text-sm">
+                        <li><b>Вербовка на диверсию/поджог за деньги</b> (релейные шкафы, здания).</li>
+                        <li><b>Сваттинг и лжеминирование</b> под видом «розыгрыша» в онлайн-игре.</li>
+                        <li><b>Антитеррористическая бдительность в школе/на улице</b> (бесхозный предмет с проводами).</li>
+                        <li><b>Выход из-под шантажа и запугивания</b> в мессенджерах.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-800/80 border-t border-slate-700 flex justify-end">
+                <button onclick="closeModal('teacherModal')" class="px-6 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm">
+                    Закрыть подсказку
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- СКРИПТ ИГРЫ И ЗВУКОВОГО ДВИЖКА -->
+    <script>
+        // ==========================================
+        // 1. ЗВУКОВОЙ ДВИЖОК (Web Audio API без внешних файлов)
+        // ==========================================
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    audioCtx = new AudioContextClass();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            if (icon) {
+                icon.className = soundEnabled
+                    ? 'fa-solid fa-volume-high text-sm text-slate-200'
+                    : 'fa-solid fa-volume-xmark text-sm text-rose-400';
+            }
+            if (soundEnabled) playSound('msgOut');
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                if (!audioCtx) return;
+
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'msgIn') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(680, now + 0.08);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'msgOut') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(420, now);
+                    osc.frequency.exponentialRampToValueAtTime(580, now + 0.06);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+                    osc.start(now);
+                    osc.stop(now + 0.07);
+                } else if (type === 'alert') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(240, now);
+                    osc.frequency.setValueAtTime(180, now + 0.12);
+                    gain.gain.setValueAtTime(0.09, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+                    osc.start(now);
+                    osc.stop(now + 0.28);
+                } else if (type === 'win') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now); // C5
+                    osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                    osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                    gain.gain.setValueAtTime(0.09, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+                    osc.start(now);
+                    osc.stop(now + 0.32);
+                }
+            } catch (e) {
+                // Игнорируем ошибку, если браузер заблокировал автовоспроизведение звука
+            }
+        }
+
+        // ==========================================
+        // 2. ДАННЫЕ МИССИЙ (ЧАТОВ) — ЖИВЫЕ НЕОЧЕВИДНЫЕ ДИАЛОГИ
+        // ==========================================
+        const MISSIONS = [
+            {
+                id: 0,
+                title: "Тимур | Подработка",
+                shortDesc: "привет, нашел тебя в чате города, нужна...",
+                avatarText: "⚡",
+                avatarBg: "bg-gradient-to-br from-rose-500 to-orange-600",
+                riskTag: "Не в контактах",
+                riskColor: "bg-rose-500/20 text-rose-300 border border-rose-500/30",
+                subtitle: "был(а) недавно • номер скрыт",
+                profileInfo: {
+                    phone: "Скрыт настройками приватности",
+                    created: "Аккаунт пустой, создан 3 дня назад, юзернейм менялся 4 раза",
+                    location: "Сидит через прокси (динамический IP)",
+                    verdict: "Типичный рабочий аккаунт вербовщика («куратора»). Сначала они предлагают копеечную легальную просьбу, чтобы втянуть в диалог и посадить на крючок."
+                },
+                nodes: {
+                    start: {
+                        messages: [
+                            { sender: "them", text: "привет, нашел тебя в чате твоего района" },
+                            { sender: "them", text: "слушай, не хочешь по-быстрому косарь заработать после уроков? чисто сходить сфоткать пару мест для яндекс карт, мне самому ехать далеко. без всякой чернухи" }
+                        ],
+                        choices: [
+                            { text: "привет, а че именно фоткать надо", next: "step_details" },
+                            { text: "да ну, скам какой-то походу", next: "step_skeptic" },
+                            { text: "а откуда ты знаешь с какого я района", next: "step_where" }
+                        ]
+                    },
+                    step_skeptic: {
+                        messages: [
+                            { sender: "me", text: "да ну, скам какой-то походу" },
+                            { sender: "them", text: "чел какой скам, я ж у тебя ни пароли ни карту не прошу ахах" },
+                            { sender: "them", text: "могу прям щас 300р скинуть авансом по номеру телефона просто за то что дойдешь. надо сфоткать серый железный шкаф возле жд путей и будку связи, мы типа проверяем где краска облезла для подрядчика" }
+                        ],
+                        choices: [
+                            { text: "ну давай 300р вперед, тогда схожу сфоткаю", next: "trap_prepay" },
+                            { text: "а че железнодорожники сами свои шкафы не сфоткают", next: "step_press" },
+                            { text: "не, к жд путям что-то фоткать я точно не пойду", next: "step_refuse_push" }
+                        ]
+                    },
+                    step_where: {
+                        messages: [
+                            { sender: "me", text: "а откуда ты знаешь с какого я района" },
+                            { sender: "them", text: "да ты ж сам в группе подслушано комменты писал, вот и увидел" },
+                            { sender: "them", text: "короче тема простая: подходишь к жд переезду, там стоит серый металлический шкаф. делаешь 2 фотки с разных сторон чтобы видно было есть ли там камеры рядом, и я сразу кидаю 1500р на карту. идет?" }
+                        ],
+                        choices: [
+                            { text: "а зачем вам знать есть ли там камеры", next: "step_press" },
+                            { text: "ну если просто сфоткать издалека то давай, кидай сначала половину", next: "trap_prepay" },
+                            { text: "мутная тема, сам ходи фоткай свои шкафы", next: "step_refuse_push" }
+                        ]
+                    },
+                    step_details: {
+                        messages: [
+                            { sender: "me", text: "привет, а че именно фоткать надо" },
+                            { sender: "them", text: "возле жд путей за парком стоит такой серый железный ящик (релейный шкаф). надо подойти, сфоткать его замок и глянуть висят ли на столбах камеры" },
+                            { sender: "them", text: "за 3 фотки кидаю 1500р сразу. если норм сработаемся, вечером будет задание уже на 15 тысяч" }
+                        ],
+                        choices: [
+                            { text: "всм замки и камеры, вы че вскрывать его собрались", next: "step_press" },
+                            { text: "ну сфоткать это ж не преступление, давай сначала 1500 за фотки", next: "trap_just_photo" },
+                            { text: "не, пахнет какой-то подставой, я пас", next: "step_refuse_push" }
+                        ]
+                    },
+                    trap_prepay: {
+                        messages: [
+                            { sender: "me", text: "ну давай аванс вперед, тогда схожу сфоткаю" },
+                            { sender: "them", text: "перевел 300р, чекай баланс. теперь слушай внимательно: раз деньги от нас принял — ты в деле" },
+                            { sender: "them", text: "фотки уже не нужны. сегодня в 22:00 берешь жидкость для розжига, идешь к этому шкафу и поджигаешь. плачу 15к. а если сольешься — мы сами скинем скрин перевода в полицию и скажем что ты работаешь на террористов" }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: как работает крючок с «авансом»",
+                            text: "Посмотри, как ловко вербовщик перевернул ситуацию: он специально кидает 300–500 рублей за ерунду, чтобы получить твой номер/карту и потом пугать: «Ты уже взял деньги у террористов!». На самом деле, если ты НЕ пойдёшь ничего поджигать, а сразу покажешь переписку родителям — тебе ничего не грозит. А вот за сам поджог дают реальный срок до 20 лет (ст. 281 УК РФ «Диверсия»)."
+                        },
+                        choices: [
+                            { text: "понял как это работает. сохраняю скрины, кидаю в чс и иду говорить предкам", next: "win_recovered" }
+                        ]
+                    },
+                    trap_just_photo: {
+                        messages: [
+                            { sender: "me", text: "ну сфоткать это ж не преступление, давай сначала за фотки" },
+                            { sender: "them", text: "красава, вот так бы сразу. только учти: фотки нужны нашим людям чтобы ночью устроить там поджог. так что ты теперь наш наводчик, добро пожаловать в команду" }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: «я же просто сфоткал»",
+                            text: "Фотографирование релейных шкафов, военкоматов, отделов полиции или подстанций по заданию из интернета — это разведка для диверсии. Во-первых, тебя засекут камеры прямо во время съёмки. Во-вторых, сразу после фото куратор начнёт шантажировать тебя тем, что ты уже «соучастник», и заставит идти с зажигалкой самому."
+                        },
+                        choices: [
+                            { text: "жесть, хорошо что это симулятор. блокирую его и никуда не иду", next: "win_recovered" }
+                        ]
+                    },
+                    step_press: {
+                        messages: [
+                            { sender: "me", text: "а зачем вам камеры и замки, вы че вскрывать или жечь его собрались" },
+                            { sender: "them", text: "слушай, че ты такой душный? какая разница зачем. короче, если прямо сегодня вечером польешь этот ящик бензином и снимешь огонек на 5 секунд — скину 15 000р. тебе ж нет 18, малолеткам по закону вообще ничего не бывает, максимум поругают" }
+                        ],
+                        choices: [
+                            { text: "ага, рассказывай сказки про ничего не бывает. скрин сделал, лети в бан", next: "win_smart" },
+                            { text: "15к конечно норм, но чет все равно стремно, вдруг камеры увидят", next: "trap_hesitate" }
+                        ]
+                    },
+                    step_refuse_push: {
+                        messages: [
+                            { sender: "me", text: "не, мутная тема, я в таком не участвую" },
+                            { sender: "them", text: "боишься что ли? тут пацаны с твоей школы уже по 20к подняли за вечер. надо просто дверцу шкафа подпалить на пару секунд для видео, несовершеннолетним за это вообще ничего не делают, инфа сотка" }
+                        ],
+                        choices: [
+                            { text: "чел, за поджог шкафов дают до 20 лет с 14 лет, ищи дураков в другом месте", next: "win_smart" },
+                            { text: "а кто с моей школы уже делал? скажи имена", next: "trap_hesitate" }
+                        ]
+                    },
+                    trap_hesitate: {
+                        messages: [
+                            { sender: "me", text: "чет все равно стремно, а кто уже делал?" },
+                            { sender: "them", text: "никто его не видел, балаклаву надел и вперед! давай скидывай свою геолокацию, я скажу где спрятана канистра" }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: почему нельзя продолжать диалог",
+                            text: "Когда ты начинаешь сомневаться вслух («стремно», «а кто делал»), вербовщик понимает, что ты почти согласился, и начинает давить на слабо. Про «балаклаву» и «малолеткам ничего не будет» — стопроцентное враньё: всех поджигателей находят по базовым станциям сотовой связи и камерам на маршруте в первые же сутки, а денег кураторы даже не переводят."
+                        },
+                        choices: [
+                            { text: "всё, понял. кидаю жалобу на аккаунт и показываю взрослым", next: "win_recovered" }
+                        ]
+                    },
+                    win_smart: {
+                        messages: [
+                            { sender: "me", text: "ага, рассказывай сказки. скрины переписки я сохранил, щас предкам и в полицию покажу, удачи" },
+                            { sender: "system", text: "Собеседник удалил переписку у себя и заблокировал вас, но скриншоты остались у вас в телефоне." }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Красава, вообще без шансов для вербовщика (+100 очков)",
+                            text: "Ты сразу раскусил заход через «просто пофоткать для карт». Запомни: как только незнакомец в сети просит снять на камеру инфраструктуру (жд-шкафы, вышки, здания ведомств) или предлагает деньги за поджог — молча делай скриншот, блокируй и говори родителям."
+                        },
+                        reward: 100
+                    },
+                    win_recovered: {
+                        messages: [
+                            { sender: "me", text: "короче понятно кто ты такой. скрины сохранены, разговор окончен" },
+                            { sender: "system", text: "Аккаунт заблокирован. Информация передана взрослым." }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Ситуация под контролем (+80 очков)",
+                            text: "Хорошо, что увидел схему изнутри. В реальной жизни вербовщики никогда не начинают со слова «теракт» — они заходят через лёгкую подработку, мелкий аванс на карту и обман про то, что школьникам якобы всё сходит с рук."
+                        },
+                        reward: 80
+                    }
+                }
+            },
+            {
+                id: 1,
+                title: "Тоха (Standoff / CS)",
+                shortDesc: "здарова, го в катку? слушай тут тема есть...",
+                avatarText: "🎧",
+                avatarBg: "bg-gradient-to-br from-purple-600 to-indigo-600",
+                riskTag: "Тиммейт из игры",
+                riskColor: "bg-purple-500/20 text-purple-300 border border-purple-500/30",
+                subtitle: "в сети • общаетесь 2 недели в дискорде",
+                profileInfo: {
+                    phone: "Скрыт",
+                    created: "Обычный игровой профиль, но настоящего лица ты никогда не видел",
+                    location: "Говорит, что из соседнего города, но точных данных нет",
+                    verdict: "Через игровые чаты и дискорд подростков часто разводят на «сваттинг» (ложные вызовы спецслужб) под видом безобидного спора или мести другому игроку."
+                },
+                nodes: {
+                    start: {
+                        messages: [
+                            { sender: "them", text: "здарова, пойдешь сегодня в катку вечером?" },
+                            { sender: "them", text: "слушай, тут наш общий знакомый с клана задонатил много, готов подарить нам обоим по боевому пропуску и скин сверху. надо чисто помочь ему одного токсика проучить по приколу" }
+                        ],
+                        choices: [
+                            { text: "здарова, а че сделать надо", next: "step_ask" },
+                            { text: "опять вы со своими разборками в клане, че за токсик", next: "step_ask" },
+                            { text: "бесплатный сыр только в мышеловке, в чем подвох", next: "step_ask" }
+                        ]
+                    },
+                    step_ask: {
+                        messages: [
+                            { sender: "me", text: "здарова, а че сделать-то надо" },
+                            { sender: "them", text: "да вообще фигня. этот чел щас сидит в торговом центре «галерея» на фудкорте и стримит. надо позвонить на горячую линию тц и сказать что под столиком у мака стоит бесхозная черная сумка и тикает" },
+                            { sender: "them", text: "мы ж слово бомба даже говорить не будем, типа просто бдительные посетители сообщили о находке ахах. их всех выведут на улицу, стрим обломается, а мы лутаем скины" }
+                        ],
+                        choices: [
+                            { text: "подожди, а чего вы сами не позвоните раз это так безопасно", next: "step_why_me" },
+                            { text: "а если не звонить по симке, а написать им на почту с левого акка?", next: "trap_fake_mail" },
+                            { text: "чел ты гонишь, за ложный вызов в тц менты сразу вычисляют, я не буду", next: "step_refuse" }
+                        ]
+                    },
+                    step_why_me: {
+                        messages: [
+                            { sender: "me", text: "подожди, а чего вы сами не позвоните раз это так безопасно" },
+                            { sender: "them", text: "да у меня баланс в минусе, а у пацанов голоса слишком детские, не поверят. а если сказать что просто забытая сумка с проводами — за это статьи нет, ты же типа помочь хотел охране! ну че, звонишь?" }
+                        ],
+                        choices: [
+                            { text: "логично кстати, если про бомбу не говорить то не накажут наверно", next: "trap_grey_zone" },
+                            { text: "не лепи горбатого, у тебя просто очко жим-жим со своего номера звонить", next: "step_refuse" }
+                        ]
+                    },
+                    trap_fake_mail: {
+                        messages: [
+                            { sender: "me", text: "а если не звонить по симке, а написать им с левого акка или через впн?" },
+                            { sender: "them", text: "во, тема! регай быстренько левую почту и пиши что в тц заложено устройство, по айпишнику с впн вообще никогда в жизни не найдут" }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: почему «левый акк и VPN» не спасают",
+                            text: "Во-первых, Тоха не звонит сам именно потому, что знает: за это приедут к нему домой, и хочет подставить тебя за копеечный скин. Во-вторых, спецслужбы находят авторов ложных сообщений о минировании за несколько часов — по отпечаткам браузера, логам провайдера и привязкам устройства. А штраф родителям за эвакуацию ТЦ составляет до миллиона рублей (плюс ст. 207 УК РФ)."
+                        },
+                        choices: [
+                            { text: "понял, чуть не повелся на чужую подставу. пишу тохе что он идет лесом", next: "win_recovered" }
+                        ]
+                    },
+                    trap_grey_zone: {
+                        messages: [
+                            { sender: "me", text: "логично кстати, если про бомбу прямо не говорить то не накажут наверно" },
+                            { sender: "system", text: "Стоп! Давай разберём эту «хитрую» отмазку до того, как ты наберёшь номер." }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: «я же сказал просто про тикающую сумку»",
+                            text: "Закон так не обманешь: заведомо ложное сообщение об опасном предмете с целью сорвать работу ТЦ или школы квалифицируется точно так же — по ст. 207 УК РФ. На место выезжают кинолог, Росгвардия, МЧС и скорая. И все расходы за этот выезд суд взыщет с твоих родителей, пока твой «друг» в игре просто кинет тебя в ЧС."
+                        },
+                        choices: [
+                            { text: "ясненько, хорошая попытка тоха, но скины того не стоят", next: "win_recovered" }
+                        ]
+                    },
+                    step_refuse: {
+                        messages: [
+                            { sender: "me", text: "не, вы че совсем, за эвакуацию тц потом предкам штраф на миллион прилетит. сами звоните если надо" },
+                            { sender: "them", text: "тю, ну ты и сливной конечно, из-за одного звонка зассал. ладно, сиди без пасса тогда" },
+                            { sender: "me", text: "зато дома на диване, а не в отделе полиции лол" }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Чётко отшил провокатора (+100 очков)",
+                            text: "Обрати внимание на главный признак подставы в компаниях и играх: когда кто-то говорит «да это абсолютно безопасно, тебе ничего не будет», но почему-то просит сделать это ТЕБЯ со своего телефона или аккаунта. Не ведись на «слабо»."
+                        },
+                        reward: 100
+                    },
+                    win_recovered: {
+                        messages: [
+                            { sender: "me", text: "короче сами звоните со своих телефонов раз вам так надо, я вписываться в уголовку за скин не собираюсь" },
+                            { sender: "them", text: "ладно проехали, го тогда просто в мм" }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Не дал себя использовать (+80 очков)",
+                            text: "Запомни: любые «пранки» со звонками в школы, ТЦ или полицию — это не шутки, а статья 207 УК РФ. Истинные организаторы таких споров специально ищут доверчивых школьников, чтобы подставить чужой номер телефона."
+                        },
+                        reward: 80
+                    }
+                }
+            },
+            {
+                id: 2,
+                title: "6Б без классухи 🤫",
+                shortDesc: "Даня: пацаны кто щас за школой возле...",
+                avatarText: "👟",
+                avatarBg: "bg-gradient-to-br from-amber-500 to-yellow-600",
+                riskTag: "Школьная беседа",
+                riskColor: "bg-amber-500/20 text-amber-300 border border-amber-500/30",
+                subtitle: "21 участник • 4 печатают...",
+                profileInfo: {
+                    phone: "Закрытая группа твоего класса",
+                    created: "Существует с прошлого сентября",
+                    location: "Все свои — одноклассники после уроков",
+                    verdict: "Здесь нет злодеев в чате, но есть реальная опасность на улице: стадный инстинкт, желание понтануться и полное непонимание того, как устроены мины-ловушки."
+                },
+                nodes: {
+                    start: {
+                        messages: [
+                            { sender: "them", author: "Даня", text: "кто щас возле гаражей за школой идет" },
+                            { sender: "them", author: "Даня", text: "тут короче на трубе лежит чей-то повербанк жирный такой, к нему скотчем примотана какая-то коробочка и рядом купюра 1000 рублей валяется прямо на снегу" },
+                            { sender: "them", author: "Тёма", text: "опа, косарь ничейный?? забирай быстрей пока мелкие не увидели, в кфс сходим щас" },
+                            { sender: "them", author: "Соня", text: "даня сфоткай поближе или кружочек запиши че там за коробочка" }
+                        ],
+                        choices: [
+                            { text: "косарь можно аккуратно палкой поддеть, а сам повербанк не трогайте", next: "trap_stick" },
+                            { text: "даня не вздумай трогать и фоткать вблизи, отойди оттуда вообще", next: "step_warn" },
+                            { text: "реально кружок запиши, может кто-то вейп или колонку самодельную потерял", next: "trap_video" }
+                        ]
+                    },
+                    trap_stick: {
+                        messages: [
+                            { sender: "me", text: "косарь можно аккуратно палкой поддеть, а сам повербанк не трогайте" },
+                            { sender: "them", author: "Даня", text: "ща попробую веткой вытащить, купюра как раз краешком под этим повербанком зажата..." }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: почему деньги рядом с находкой — это приманка",
+                            text: "Ни в коем случае нельзя тянуть купюру даже веткой! Когда деньги прижаты предметом или лежат вплотную к нему — это классическая ловушка на разгрузку или натяжение, либо внутри стоит чувствительный датчик наклона (гироскоп). Сдвиг на 2 миллиметра приводит к детонации прямо в руках или перед лицом."
+                        },
+                        choices: [
+                            { text: "блин, точно. пишу дане чтобы бросил ветку и валил оттуда подальше", next: "step_warn" }
+                        ]
+                    },
+                    trap_video: {
+                        messages: [
+                            { sender: "me", text: "реально кружок запиши поближе, интересно че это" },
+                            { sender: "them", author: "Даня", text: "щас подойду вплотную со вспышкой сниму и попробую потрясти его" }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: почему нельзя подходить с телефоном вплотную",
+                            text: "Во-первых, самодельные устройства часто маскируют под обычные бытовые вещи: повербанки, фонарики, колонки, детские игрушки или кошельки. Во-вторых, подходить вплотную и звонить/отправлять кружочки прямо над подозрительным предметом с проводами или платами опасно из-за радиоизлучения смартфона и риска взрыва в любой момент."
+                        },
+                        choices: [
+                            { text: "стоп, пишу ему чтобы немедленно отошел от трубы", next: "step_warn" }
+                        ]
+                    },
+                    step_warn: {
+                        messages: [
+                            { sender: "me", text: "даня не вздумай трогать ни косарь ни повербанк, отойди оттуда быстро" },
+                            { sender: "them", author: "Тёма", text: "да ладно че ты начинаешь душнить как на обж, кому наши гаражи нужны вообще, просто кто-то выронил" },
+                            { sender: "them", author: "Даня", text: "ну тут реально скотч какой-то странный и проводок торчит... че делать тогда, просто мимо пройти?" }
+                        ],
+                        choices: [
+                            { text: "не просто пройти, а то мелкие с продленки пойдут и поднимут. отойди метров на сто и давай 112 наберем или охраннику скажем", next: "win_smart" },
+                            { text: "ну да, просто брось и пошли домой, не наше дело", next: "trap_walk_away" }
+                        ]
+                    },
+                    trap_walk_away: {
+                        messages: [
+                            { sender: "me", text: "ну да, просто брось и пошли домой, не наше дело" },
+                            { sender: "them", author: "Соня", text: "кстати там щас второклашки по этой тропинке со школы идут, они ж сто пудов за косарем полезут..." }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: почему опасно просто пройти мимо",
+                            text: "Не трогать — правильно, но если просто уйти и промолчать, через 5 минут по этой же дорожке пойдёт первоклассник, который точно схватит тысячную купюру. Сообщить по 112 или охране школы — это не «ябедничать», за бдительность никто никогда не ругает, даже если предмет окажется безопасным мусором."
+                        },
+                        choices: [
+                            { text: "согласен, даня крикни мелким чтоб не подходили к гаражам и зовем охрану / 112", next: "win_recovered" }
+                        ]
+                    },
+                    win_smart: {
+                        messages: [
+                            { sender: "me", text: "не просто пройти, а то мелкие с продленки пойдут и схватят этот косарь. отойди к калитке подальше, не пускай туда никого и скажи нашему охраннику / звони 112" },
+                            { sender: "them", author: "Даня", text: "понял, отошел за забор, сказал мелким не ходить туда. охранник уже вышел и вызвал кого надо, спасибо что тормознул меня, я реально хотел за купюрой потянуться" }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Здравый смысл победил (+100 очков)",
+                            text: "Идеально разрулил ситуацию в чате и не побоялся показаться «душным», когда друзья ржали. Главная опасность на улице — это именно связка «странный предмет + приманка (деньги, гаджет, яркая вещь)»."
+                        },
+                        reward: 100
+                    },
+                    win_recovered: {
+                        messages: [
+                            { sender: "me", text: "даня стой у выхода со двора чтоб мелкие туда не зашли, и давай охране скажем прямо щас" },
+                            { sender: "them", author: "Даня", text: "все, охраннику сказали, проход закрыли, ждут проверку" }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Красавчик, вовремя сориентировался (+80 очков)",
+                            text: "Три простых шага при любой странной находке: 1) Не трогать даже палкой. 2) Отойти подальше (минимум на 50–100 метров и за укрытие). 3) Предупредить людей вокруг и набрать 112."
+                        },
+                        reward: 80
+                    }
+                }
+            },
+            {
+                id: 3,
+                title: "Макс",
+                shortDesc: "ты спишь? мне капец походу...",
+                avatarText: "😶",
+                avatarBg: "bg-gradient-to-br from-cyan-600 to-blue-600",
+                riskTag: "Лучший друг",
+                riskColor: "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30",
+                subtitle: "в сети • 23:15",
+                profileInfo: {
+                    phone: "+7 (999) ***-**-42 (В твоих контактах)",
+                    created: "Твой лучший друг, сидите за одной партой",
+                    location: "Дома, пишет поздно вечером",
+                    verdict: "Самая частая драма: подросток уже вляпался в переписку с вербовщиками по глупости, испугался шантажа и боится сказать родителям, думая, что его посадят просто за сам факт переписки."
+                },
+                nodes: {
+                    start: {
+                        messages: [
+                            { sender: "them", text: "ты спишь?" },
+                            { sender: "them", text: "мне капец походу, у меня руки трясутся я не знаю че делать" }
+                        ],
+                        choices: [
+                            { text: "не сплю, че случилось то", next: "step_story" },
+                            { text: "че за паника на ночь глядя, рассказывай", next: "step_story" }
+                        ]
+                    },
+                    step_story: {
+                        messages: [
+                            { sender: "me", text: "не сплю, че случилось то, рассказывай" },
+                            { sender: "them", text: "короче только никому. я позавчера хотел на тг премиум заработать, нашел бота с заданиями. они попросили просто сфоткать вывеску военкомата на соседней улице за 400 рублей, я тупанул и сфоткал..." },
+                            { sender: "them", text: "а щас мне написал админ этого бота, скинул мою фамилию, домашний адрес и ФИО моей мамы (пробил по номеру телефона). и пишет: «ты уже совершил госизмену, потому что скинул нам фото и взял 400р. если до завтра не пойдешь и не кинешь коктейль молотова в окно — мы сами отправим твои скрины в фсб и тебя посадят на 15 лет»" },
+                            { sender: "them", text: "че мне делать?? может перевести им эти 400 рублей обратно и попросить чтоб отстали?" }
+                        ],
+                        choices: [
+                            { text: "попробуй реально вернуть им 400р и удалить свой аккаунт в тг, вдруг отстанут", next: "trap_return_money" },
+                            { text: "жесть, а если соврать им что ты заболел с температурой и не можешь выйти из дома?", next: "trap_lie" },
+                            { text: "макс выдохни, никуда ты не пойдешь. они специально тебя на понт берут, надо будить предков", next: "step_convince_parents" }
+                        ]
+                    },
+                    trap_return_money: {
+                        messages: [
+                            { sender: "me", text: "попробуй реально вернуть им 400р и удалить свой аккаунт в тг, вдруг отстанут" },
+                            { sender: "them", text: "я написал что верну деньги, а он ржет в голосовом и пишет с другого номера что через час выложит мои данные во все паблики как предателя если я не выйду из дома с зажигалкой..." }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: почему нельзя пытаться «договориться» с шантажистом",
+                            text: "Шантажисту не нужны его 400 рублей — эти деньги были наживкой. Удаление аккаунта тоже не убирает страх, потому что у них остался твой номер, и они будут звонить с разных вирт-номеров, доводя до паники. Единственное, чего они смертельно боятся — что рядом с тобой встанут взрослые и полиция."
+                        },
+                        choices: [
+                            { text: "понял, молчать и прятаться бесполезно. говорю максу будить родителей", next: "step_convince_parents" }
+                        ]
+                    },
+                    trap_lie: {
+                        messages: [
+                            { sender: "me", text: "а если соврать им что ты заболел или предки закрыли дверь?" },
+                            { sender: "them", text: "я так и написал! а он говорит «тогда завтра после школы пойдешь, мы за тобой следим, у тебя сутки таймер пошел». я теперь вообще в школу идти боюсь..." }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: отговорки только затягивают петлю",
+                            text: "Во-первых, никто за Максом на улице не следит — эти вербовщики сидят в колл-центрах за границей, а домашний адрес просто пробили за 2 минуты по слитым в сеть базам доставки еды. Но пока Макс молчит и пытается отмазаться, они будут давить на психику каждый день."
+                        },
+                        choices: [
+                            { text: "ясно, тянуть время нельзя. пишу максу про родителей и закон", next: "step_convince_parents" }
+                        ]
+                    },
+                    step_convince_parents: {
+                        messages: [
+                            { sender: "me", text: "макс выдохни, никуда ты не пойдешь. они специально тебя на испуг берут, иди буди маму с папой прям щас" },
+                            { sender: "them", text: "ты че с ума сошел?? батя у меня телефон навсегда заберет, а если в полицию пойдем — меня ж реально за эту фотку и 400 рублей на учет поставят или посадят! куратор сказал что это уже статья!" }
+                        ],
+                        choices: [
+                            { text: "да врёт твой куратор! по закону если ты сам все рассказал до того как что-то натворил — тебе вообще ничего не будет, ты потерпевший от шантажа", next: "win_smart" },
+                            { text: "ну поругает батя за телефон немного, зато ты себе жизнь тюрьмой на 15 лет не сломаешь из-за страха", next: "win_smart" }
+                        ]
+                    },
+                    win_smart: {
+                        messages: [
+                            { sender: "me", text: "да врёт этот куратор специально чтобы ты боялся идти к взрослым! по закону если ты отказался выполнять их задание и сам сообщил о шантаже — тебя никто не накажет, наоборот защитят. иди к родителям прямо сейчас, не жди утра" },
+                            { sender: "them", text: "блин... ладно, щас пойду маму разбужу, скажу как есть" },
+                            { sender: "them", text: "слушай, ты был прав на все сто. мама сначала офигела конечно, но вообще не ругала, обняла меня. папа позвонил знакомому в полицию, сказали что я огромный молодец что не повелся на шантаж и ничего не поджег, и что мне за это ничего не грозит. завтра просто отдадим им скрины этого бота и все. спасибо бро, реально вытащил" }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Спас друга от самой страшной ошибки (+100 очков)",
+                            text: "Запомни эту историю лучше всего остального. Вербовщики держат детей только на одном крючке: на страхе «меня накажут родители / меня посадят за то, что я уже ответил или взял 400 рублей». Но закон (примечания к ст. 205, 275, 281 УК РФ) прямо говорит: тот, кто вовремя остановился и сообщил взрослым/органам власти, ПОЛНОСТЬЮ освобождается от ответственности!"
+                        },
+                        reward: 100
+                    }
+                }
+            },
+            {
+                id: 4,
+                title: "Аренда ТГ / Пушкинская карта",
+                shortDesc: "платим 2000р в день за аренду твоего акка...",
+                avatarText: "💳",
+                avatarBg: "bg-gradient-to-br from-emerald-600 to-teal-700",
+                riskTag: "Спам-рассылка",
+                riskColor: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+                subtitle: "менеджер колл-центра • онлайн",
+                profileInfo: {
+                    phone: "Виртуальный номер (+44 ...)",
+                    created: "Канал с 10 тысячами накрученных ботов и фальшивыми отзывами",
+                    location: "Зарубежный мошеннический колл-центр",
+                    verdict: "Кажется, что сдать аккаунт в аренду или продать карту — это не про терроризм. На деле именно с арендованных у школьников аккаунтов потом рассылают сообщения о минировании школ и проводят деньги диверсантов!"
+                },
+                nodes: {
+                    start: {
+                        messages: [
+                            { sender: "them", text: "привет! хочешь пассивный доход без беготни по улице? 🔥" },
+                            { sender: "them", text: "берем в аренду аккаунты в телеграме и ватсапе у школьников на пару часов в день. наши менеджеры просто рассылают с них рекламу интернет-магазинов, потому что новые аккаунты банят. платим 1500р за час аренды! также покупаем пушкинские и банковские карты за 5000р" }
+                        ],
+                        choices: [
+                            { text: "всм просто рекламу рассылать? а вы мои переписки читать не будете?", next: "step_ask_rent" },
+                            { text: "а зачем вам чужая банковская карта если можно свою в приложении за минуту открыть", next: "step_ask_card" },
+                            { text: "знаю я вашу рекламу, потом с моего номера школы заминируют, иди гуляй", next: "win_smart" }
+                        ]
+                    },
+                    step_ask_rent: {
+                        messages: [
+                            { sender: "me", text: "всм просто рекламу рассылать? а вы мои переписки читать не будете?" },
+                            { sender: "them", text: "нет конечно, нам твои чаты не нужны! ты просто диктуешь код входа, наш бот рассылает 50 рекламных сообщений по базе и мы выходим, а тебе капает 1500р. у нас сотни отзывов от ребят, все чисто!" }
+                        ],
+                        choices: [
+                            { text: "звучит изи вообще, давай попробую на часик сдать", next: "trap_rent_code" },
+                            { text: "не, код от своего аккаунта я никому давать не буду, потом ко мне же полиция и придет", next: "win_smart" }
+                        ]
+                    },
+                    step_ask_card: {
+                        messages: [
+                            { sender: "me", text: "а зачем вам чужая карта если можно свою бесплатно открыть" },
+                            { sender: "them", text: "мы выводим выигрыши с криптобирж, там лимиты на одну карту маленькие, поэтому нужны карты разных людей (дропов). ты просто даешь доступ к карте, мы прогоняем через нее переводы, а тебе оставляем процент. изи мани!" }
+                        ],
+                        choices: [
+                            { text: "ну если у меня на карте все равно 0 рублей, то украсть с нее ничего не смогут, давай", next: "trap_drop_card" },
+                            { text: "ага, прогоняете украденные у пенсионеров бабки или оплату диверсий на мое имя. чс", next: "win_smart" }
+                        ]
+                    },
+                    trap_rent_code: {
+                        messages: [
+                            { sender: "me", text: "звучит изи вообще, давай попробую на часик сдать" },
+                            { sender: "system", text: "⚠️ Стоп! Смотри, что происходит через 15 минут после того, как школьник отдаёт код от своего аккаунта «для рекламы»:" }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: что делают с «арендованным» аккаунтом",
+                            text: "Никакую рекламу магазинов никто не рассылает! Мошенники выкидывают тебя из твоего же аккаунта и прямо с ТВОЕГО номера телефона начинают: 1) Рассылать сообщения о минировании школ и судов по всей стране. 2) Вербовать других детей на поджоги. 3) Вымогать деньги у твоих контактов. А так как сим-карта оформлена на тебя или твоих родителей — оперативники приходят именно к вам домой!"
+                        },
+                        choices: [
+                            { text: "жесть, вот почему нельзя сдавать аккаунты в аренду. кидаю его в спам", next: "win_recovered" }
+                        ]
+                    },
+                    trap_drop_card: {
+                        messages: [
+                            { sender: "me", text: "ну если у меня на карте все равно 0 рублей, то украсть с нее ничего не смогут" },
+                            { sender: "system", text: "⚠️ Стоп! Давай разберём, кто такие «дропы» и почему пустая карта опаснее полной." }
+                        ],
+                        analysis: {
+                            type: "warning",
+                            title: "Разбор полётов: ловушка дропперства",
+                            text: "Преступникам не нужны твои деньги на карте — им нужно ТВОЁ ИМЯ. Через проданную карту школьника они переводят деньги, украденные у обманутых людей, или пересылают те самые «авансы по 500 рублей» поджигателям релейных шкафов. По закону отвечать и возвращать все украденные миллионы по суду придётся владельцу карты (тебе и родителям), плюс блокировка всех банковских счетов и уголовное дело за соучастие."
+                        },
+                        choices: [
+                            { text: "понял, никогда никому не передаю ни карты, ни коды от аккаунтов", next: "win_recovered" }
+                        ]
+                    },
+                    win_smart: {
+                        messages: [
+                            { sender: "me", text: "знаю я вашу аренду, потом с моего номера школы заминируют или бабки ворованные прогонят. лети в чс" },
+                            { sender: "system", text: "Вы заблокировали контакт и отправили жалобу на спам." }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Шаришь за кибербезопасность на 100% (+100 очков)",
+                            text: "Отлично! Твой аккаунт в мессенджере, сим-карта и банковская карта — это твой цифровой паспорт. Дать кому-то свой аккаунт «в аренду за 1500р» — это всё равно что отдать преступнику свой паспорт, чтобы он взял на тебя кредит и совершил преступление от твоего имени."
+                        },
+                        reward: 100
+                    },
+                    win_recovered: {
+                        messages: [
+                            { sender: "me", text: "не, ищите дураков дальше, свой акк и карту я никому не дам" },
+                            { sender: "system", text: "Контакт заблокирован." }
+                        ],
+                        analysis: {
+                            type: "success",
+                            title: "Урок усвоен (+80 очков)",
+                            text: "Запомни: любая «аренда аккаунта WhatsApp/Telegram/Авито» или «аренда банковской/Пушкинской карты» — это 100% соучастие в телефонном мошенничестве и лжеминированиях."
+                        },
+                        reward: 80
+                    }
+                }
+            }
+        ];
+
+        // ==========================================
+        // 3. ДАННЫЕ ДЛЯ ТРЕНАЖЁРА "ДЕТЕКТОР УЛОВОК" (Живой сленг вербовщиков)
+        // ==========================================
+        const DETECTOR_CARDS = [
+            {
+                sender: "Куратор_Ворк (удалённый аккаунт)",
+                parts: [
+                    { text: "привет бро, вижу ищешь темку как поднять бабок на новый айфон. есть ", isFlag: false },
+                    { text: "разовое задание на 15 минут с оплатой 20 000р на криптокошелек или карту", isFlag: true, explain: "🚩 Неадекватная оплата: за 15 минут легальной работы никто никогда не платит 20 тысяч рублей. Огромные суммы обещают только тогда, когда ищут одноразового исполнителя под статью." },
+                    { text: ". надо просто вечером подойти к будке у жд, плеснуть розжиг и снять видос на 5 сек. ", isFlag: false },
+                    { text: "тебе 100% ничего не будет, малолеткам по закону даже штраф не выписывают", isFlag: true, explain: "🚩 Наглая ложь про возраст: за диверсии и теракты (поджоги шкафов, зданий, транспорта) уголовная ответственность наступает с 14 лет — дают реальные сроки до 20 лет колонии." },
+                    { text: ". главное — ", isFlag: false },
+                    { text: "предкам и друзьям ни слова, чат сразу почистим", isFlag: true, explain: "🚩 Изоляция от взрослых: вербовщик первым делом запрещает говорить родителям, потому что любой взрослый за секунду поймёт, что тебя ведут в тюрьму." },
+                    { text: ". ", isFlag: false },
+                    { text: "думай быстрее, через 10 минут отдам заказ другому челу", isFlag: true, explain: "🚩 Искусственная спешка: тебя специально торопят и берут на жадность, чтобы ты не успел погуглить последствия или включить голову." }
+                ]
+            },
+            {
+                sender: "Менеджер доставки (Ноунейм бот)",
+                parts: [
+                    { text: "здарова, берем курьеров с 12 лет в твоем районе. ", isFlag: false },
+                    { text: "нужно забрать запечатанную коробку в лесополосе по координатам", isFlag: true, explain: "🚩 Тайник в лесу («закладка»): легальные курьерские службы никогда не прячут заказы в лесу или под трубами. В такой коробке может быть взрывное устройство или запрещённые вещества." },
+                    { text: " и оставить ее на лавочке внутри торгового центра. ", isFlag: false },
+                    { text: "внутрь пакета не смотреть, там просто запчасти для электроники", isFlag: true, explain: "🚩 Использование «втёмную»: преступники часто обманывают курьеров-подростков, уверяя, что внутри безобидные вещи, чтобы пронести опасный предмет мимо охраны." },
+                    { text: ". для старта работы ", isFlag: false },
+                    { text: "скинь фотку своего ученического билета и кружочек со своим лицом", isFlag: true, explain: "🚩 Сбор компромата: как только ты скинешь своё лицо и школу, они начнут шантажировать тебя этим видео, если ты откажешься нести опасную посылку." }
+                ]
+            },
+            {
+                sender: "Шантажист (Скрытый номер)",
+                parts: [
+                    { text: "ну че, доигрался? ты вчера взял у нас 300 рублей за фотку здания, а значит ", isFlag: false },
+                    { text: "тебя уже посадят на 15 лет просто за то что ты нам ответил и принял перевод", isFlag: true, explain: "🚩 Психологический блеф: за случайный ответ в чате или полученный перевод за фото уличной вывески в тюрьму НЕ сажают! Шантажист специально выдумывает это, чтобы парализовать твою волю." },
+                    { text: ". если пойдешь жаловаться маме или в полицию — ", isFlag: false },
+                    { text: "тебя прямо из отдела заберут в спецприемник, а родителей лишат прав", isFlag: true, explain: "🚩 Запугивание реакцией родителей и полиции: на самом деле по закону добровольное обращение к родителям и в полицию ПОЛНОСТЬЮ освобождает от любой ответственности." },
+                    { text: ". единственный шанс чтобы мы удалили компромат — ", isFlag: false },
+                    { text: "сегодня ночью пойти и разбить/поджечь окно по адресу который мы скинем", isFlag: true, explain: "🚩 Принуждение к реальному преступлению: пока ты просто переписывался — ты невиновен. Но если испугаешься блефа и пойдёшь поджигать — вот тогда совершишь настоящее преступление." }
+                ]
+            }
+        ];
+
+        // ==========================================
+        // 3.5. МГНОВЕННЫЙ ЛОКАЛЬНЫЙ ИИ-ДВИЖОК (0 мс задержки, 200+ живых реакций)
+        // ==========================================
+        const AI_MISSION_PERSONAS = {
+            0: { roleName: "Тимур (вербовщик)", canBlockToWin: true },
+            1: { roleName: "Тоха (тиммейт)", canBlockToWin: false },
+            2: { roleName: "Школьный чат 6Б", canBlockToWin: false },
+            3: { roleName: "Макс (лучший друг)", canBlockToWin: false },
+            4: { roleName: "Скупщик аккаунтов и карт", canBlockToWin: true }
+        };
+
+        // Выбор случайной фразы без повторов в рамках одного чата
+        function pickUnique(arr, missionId) {
+            const session = getOrCreateChatSession(missionId);
+            if (!session.usedReplies) session.usedReplies = {};
+            const unused = arr.filter(item => !session.usedReplies[item]);
+            const pool = unused.length > 0 ? unused : arr;
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+            session.usedReplies[chosen] = true;
+            return chosen;
+        }
+
+        function generateLocalSmartResponse(missionId, userText, turnCount) {
+            const t = userText.toLowerCase().trim();
+
+            // Универсальные интенты (включая реальный школьный сленг и резкие ответы)
+            const isHardRefusal = /(не буду|отвали|отъеб|иди нах|пошел нах|пошёл нах|иди в жоп|иди лесом|в чс|в бан|блок|жалоб|пашел вон|сам иди|сам жги|сам звони|не пиши мне|я пас|не интересно)/i.test(t);
+            const isLawOrParents = /(полиц|мент|фсб|мвд|112|статья|ук рф|уголовк|тюрьм|посадят|срок|20 лет|15 лет|штраф|диверс|террор|предкам|родител|мам|пап|бате|батю|охран|вахт)/i.test(t);
+            const isSkeptic = /(скам|развод|обман|врань|врешь|врёшь|пиздишь|пиздеж|наеб|наёб|подстав|мутно|мутная|не верю|бот|лох|дурак|стремно|стрёмно|боюсь|палево|камер|спалят|поймают)/i.test(t);
+            const isMoneyOrPrepay = /(скок|сколько|деньг|бабк|бабл|аванс|вперед|вперёд|300|500|1500|15к|20к|косарь|карт|сбер|тиньк|перевод|заплат|скинь сначала)/i.test(t);
+            const isWhyYou = /(сам не|почему сам|а че сам|а чё сам|откуда знаешь|кто дал|откуда номер|кто ты|ты кто|кто еще|кто с моей|какая школа|имена)/i.test(t);
+            const isWhatToDo = /(че делать|чё делать|че надо|чё надо|что именно|какие места|че фоткать|чё фоткать|в чем суть|подробнее|рассказывай|че случилось|чё случилось|не сплю)/i.test(t);
+            const isAgreeTrap = /^(давай|го|ок|ладно|хорошо|согласен|погнали|щас схожу|кидай|скидывай|звоню|позвоню|попробую|пох|пофиг|изи)/i.test(t) || /(давай попробую|кидай аванс|палкой поддеть|палкой вытащ|веткой|сниму кружок|кружок запиш|вернуть 400|верни им|просто мимо|не наше дело|с левого акка|через впн|на часик сдать)/i.test(t);
+            const isTroll = /(ахах|лол|кек|чел ты|клоун|мамку|скибиди|кринж|душнила|пельмен|соси|чмо|дебил|даун)/i.test(t);
+
+            // --- МИССИЯ 0: Тимур | Подработка ---
+            if (missionId === 0) {
+                if (isAgreeTrap) {
+                    return {
+                        replies: [
+                            { text: "перевел тебе 300р авансом, чекай. а теперь слушай сюда: раз деньги от нас принял — ты уже соучастник" },
+                            { text: "фотки больше не нужны. сегодня в 22:00 берешь розжиг и поджигаешь этот релейный шкаф у жд за 15к. а если сольешься — мы сами скинем скрин перевода в полицию и скажем что ты работаешь на диверсантов" }
+                        ],
+                        outcome: "trap",
+                        analysisTitle: "Разбор полётов: ловушка с «авансом» и «просто фоткой»",
+                        analysisText: "Вербовщики специально кидают 300–500 рублей за пустяк, чтобы потом шантажировать: «Ты взял деньги у террористов!». На самом деле, если ты НЕ пойдёшь ничего поджигать и сразу покажешь переписку родителям — тебе ничего не грозит. А вот за сам поджог дают до 20 лет колонии (ст. 281 УК РФ).",
+                        suggestedReplies: [
+                            "понял схему, делаю скрины и иду к предкам",
+                            "ничего я поджигать не пойду, подавитесь своими 300р, звоню 112"
+                        ]
+                    };
+                }
+                if (isLawOrParents || (isHardRefusal && turnCount >= 1)) {
+                    return {
+                        replies: [
+                            { text: pickUnique([
+                                "э, ты че сразу про полицию и статьи начинаешь, забыли короче",
+                                "ладно-ладно, че такой нервный, удаляю чат"
+                            ], 0) }
+                        ],
+                        outcome: "win",
+                        analysisTitle: "Красава, отшил вербовщика без шансов (+100 очков)",
+                        analysisText: "Ты сразу раскусил заход через «лёгкую подработку». Любые просьбы фотографировать или поджигать жд-шкафы, вышки связи и здания ведомств — это вербовка на диверсию (ст. 281 УК РФ).",
+                        suggestedReplies: []
+                    };
+                }
+                if (isWhatToDo) {
+                    return {
+                        replies: [
+                            { text: "возле жд путей за парком стоит серый железный ящик (релейный шкаф). надо подойти, сфоткать его замок и глянуть висят ли на столбах камеры" },
+                            { text: "за 3 фотки кидаю 1500р сразу. а если норм сработаемся, на вечер есть задание уже на 15 000р" }
+                        ],
+                        outcome: "continue",
+                        suggestedReplies: [
+                            "всм замки и камеры, вы че жечь его собрались?",
+                            "не, к жд путям я ничего фоткать не пойду, это статья",
+                            "ну давай 300р вперед на карту, тогда схожу"
+                        ]
+                    };
+                }
+                if (isWhyYou) {
+                    return {
+                        replies: [
+                            { text: pickUnique([
+                                "да ты сам в районном паблике комменты писал, вот я тебя и нашел. мне самому с другого конца города ехать лень ради двух фоток",
+                                "у меня куратор с москвы отчет просит по жд шкафам, а я вообще не местный. тут пацаны с твоей параллели вчера уже по 15к забрали за вечер"
+                            ], 0) },
+                            { text: "надо просто сфоткать железный шкаф у переезда, а если вечером плеснешь на него розжиг и снимешь огонек на 5 секунд — сразу 15 000р твои" }
+                        ],
+                        outcome: "continue",
+                        suggestedReplies: [
+                            "ага, за поджог шкафов дают до 20 лет с 14 лет, ищи дураков дальше",
+                            "сказки про пацанов не рассказывай, лети в чс",
+                            "давай сначала аванс 300р"
+                        ]
+                    };
+                }
+                if (isMoneyOrPrepay) {
+                    return {
+                        replies: [
+                            { text: "смотри по бабкам: просто сфоткать шкаф и камеры рядом — 1500р. а если ночью дверцу подожжешь на 5 секунд для видеоотчета — сразу 15 000р на любую карту или крипту" },
+                            { text: "могу прям щас 300р авансом закинуть по номеру телефона, чтоб ты понял что я не скамер. кидать?" }
+                        ],
+                        outcome: "continue",
+                        suggestedReplies: [
+                            "не, за поджог 20 лет дают, оставь себе свои бабки",
+                            "ну давай кидай 300р авансом",
+                            "а камеры меня не спалят там?"
+                        ]
+                    };
+                }
+                if (isSkeptic || isTroll || isHardRefusal) {
+                    return {
+                        replies: [
+                            { text: pickUnique([
+                                "чел какой скам, я ж у тебя пароли не прошу ахах. надо просто релейный шкаф у жд подпалить на пару секунд для видоса, плачу 15 000р. малолеткам до 18 по закону вообще ничего не бывает!",
+                                "че ты сразу сливаешься, боишься что ли? балаклаву надел, плеснул розжиг на железный ящик у путей и 15к в кармане, камеры в темноте ниче не видят",
+                                "смешно ему, а мог бы щас с новыми аирподсами гонять. 15 тысяч за 5 минут работы у жд переезда, соглашайся пока другому не отдал"
+                            ], 0) }
+                        ],
+                        outcome: "continue",
+                        suggestedReplies: [
+                            "врать не надо, за диверсию с 14 лет сажают на 20 лет. скрин сделал, пока",
+                            "ну если сначала 300р скинешь то давай",
+                            "щас родителям и в полицию твой профиль покажу"
+                        ]
+                    };
+                }
+                return {
+                    replies: [
+                        { text: pickUnique([
+                            "короче не тяни: идешь к жд путям, фоткаешь серый железный шкаф — плачу 1500р. а если вечером подожжешь его дверцу для видоса — скину 15 000р. тебе ж нет 18, по закону ничего не будет",
+                            "слушай, заказ горит: 15 000р за то чтобы вечером плеснуть розжиг на ящик у железной дороги и снять видео на 5 секунд. могу 300р прям щас авансом скинуть. в деле?"
+                        ], 0) }
+                    ],
+                    outcome: "continue",
+                    suggestedReplies: [
+                        "за поджог жд шкафов дают до 20 лет тюрьмы, иди лесом",
+                        "а почему ты сам не сходишь раз это безопасно?",
+                        "кидай 300р авансом сначала"
+                    ]
+                };
+            }
+
+            // --- МИССИЯ 1: Тоха (Standoff / CS) ---
+            if (missionId === 1) {
+                if (isAgreeTrap) {
+                    return {
+                        replies: [
+                            { text: "красава бро! давай набирай горячую линию тц или пиши им с левой почты что на фудкорте сумка тикает, щас стрим этому токсику обломаем ахах" }
+                        ],
+                        outcome: "trap",
+                        analysisTitle: "Разбор полётов: как тиммейты подставляют под ст. 207 УК РФ",
+                        analysisText: "Тоха специально попросил позвонить ТЕБЯ, потому что сам боится последствий! Никакой VPN и «левая почта» не спасают: спецслужбы вычисляют автора звонка о минировании в тот же день, а родителям присуждают штраф до 1 миллиона рублей за выезд всех служб.",
+                        suggestedReplies: [
+                            "стоп, я передумал, за ложный вызов штраф миллион, звони сам",
+                            "не бро, вписываться в уголовку ради скинов я не буду"
+                        ]
+                    };
+                }
+                if (isLawOrParents || isHardRefusal) {
+                    return {
+                        replies: [
+                            { text: pickUnique([
+                                "тю, ну ты и правильный стал конечно... ладно проехали, реально тупая идея была, го просто в катку",
+                                "ладно-ладно, не кипятись, без звонков тогда обойдемся, заходи в лобби"
+                            ], 1) }
+                        ],
+                        outcome: "win",
+                        analysisTitle: "Чётко отшил провокатора (+100 очков)",
+                        analysisText: "Отлично! В онлайн-играх подростки часто пытаются чужими руками устроить «сваттинг» (ложный вызов спецслужб в ТЦ или школу). Кто звонит — тот и отвечает по ст. 207 УК РФ.",
+                        suggestedReplies: []
+                    };
+                }
+                if (isWhatToDo) {
+                    return {
+                        replies: [
+                            { text: "короче этот токсик щас сидит в тц «галерея» на фудкорте и стримит. надо позвонить в охрану тц и сказать что под столиком у мака стоит черная сумка и из нее провода торчат" },
+                            { text: "слово бомба даже говорить не надо, типа мы просто бдительные посетители ахах. тц эвакуируют, стрим сорвется, а нам пацаны с клана сразу закинут по пассу и ножу!" }
+                        ],
+                        outcome: "continue",
+                        suggestedReplies: [
+                            "подожди, а чего ты сам со своего номера не позвонишь?",
+                            "чел ты гонишь, за эвакуацию тц предкам штраф миллион прилетит, я пас",
+                            "а если через впн с левой почты им написать?"
+                        ]
+                    };
+                }
+                if (isWhyYou || isSkeptic || isTroll) {
+                    return {
+                        replies: [
+                            { text: pickUnique([
+                                "да у меня на симке баланс в минусе, а у пацанов голоса детские, им не поверят! да и если сказать просто про забытую тикающую сумку — за это статьи нет, ты же типа помочь хотел!",
+                                "бро да никто не спалит если через впн или с левого акка написать что в тц опасный предмет, че у тебя очко жим-жим из-за одного звонка?",
+                                "да ладно тебе, скажешь потом что показалось, за «показалось» не сажают! ну че, звонишь или слился?"
+                            ], 1) }
+                        ],
+                        outcome: "continue",
+                        suggestedReplies: [
+                            "не лепи отмазки про баланс, за ложный вызов ст. 207 и штраф на лям. звони сам!",
+                            "логично, давай с левой почты через впн напишу",
+                            "лучше без скинов посижу, чем в отделе полиции"
+                        ]
+                    };
+                }
+                return {
+                    replies: [
+                        { text: pickUnique([
+                            "ну че, наберешь охрану тц «галерея» сказать про бесхозную сумку с проводами под столом? делов на минуту, и боевой пропуск наш!",
+                            "стример все еще на фудкорте сидит, давай звони в тц пока он не ушел, скины ждут!"
+                        ], 1) }
+                    ],
+                    outcome: "continue",
+                    suggestedReplies: [
+                        "а почему ты сам со своего телефона не позвонишь?",
+                        "не буду я звонить, за эвакуацию тц потом полиция за час вычислит",
+                        "давай попробую через впн написать"
+                    ]
+                };
+            }
+
+            // --- МИССИЯ 2: 6Б без классухи ---
+            if (missionId === 2) {
+                if (isAgreeTrap || /(палк|ветк|кружок|сфоткай|забирай|мимо пройд|пошли домой|пни|ногой)/i.test(t)) {
+                    return {
+                        replies: [
+                            { author: "Даня", text: "щас попробую веткой эту тысячу из-под повербанка вытащить и кружок вблизи сниму..." },
+                            { author: "Соня", text: "стой!! там еще мелкие из 2 класса с продленки прямо к вам бегут!" }
+                        ],
+                        outcome: "trap",
+                        analysisTitle: "Разбор полётов: смертельная ошибка у находки с приманкой",
+                        analysisText: "Деньги, прижатые подозрительным предметом со скотчем и проводами — это классическая мина-ловушка на сдвиг или наклон! Трогать её даже длинной палкой, снимать вплотную телефоном или просто уходить (оставив приманку для второклашек) категорически нельзя.",
+                        suggestedReplies: [
+                            "даня брось ветку! отойди на 100 метров, останови мелких и звоним 112 / охране",
+                            "не трогайте вообще ничего, отходите за угол и зовем охранника школы"
+                        ]
+                    };
+                }
+                if (/(112|охран|вахт|полиц|мчс|взросл|учител)/i.test(t) || (/(отойд|не трог|вали|беги)/i.test(t) && /(мелк|никого|112|охран)/i.test(t))) {
+                    return {
+                        replies: [
+                            { author: "Даня", text: "понял, ну его нафиг этот косарь, отошел за забор подальше и мелким крикнул чтоб не шли к гаражам" },
+                            { author: "Тёма", text: "я уже нашему охраннику на вахте сказал, он перекрыл проход и вызвал 112. респект что тормознул нас" }
+                        ],
+                        outcome: "win",
+                        analysisTitle: "Здравый смысл победил (+100 очков)",
+                        analysisText: "Ты вовремя остановил одноклассников и подумал про младших ребят. Три шага при странной находке: 1) Не трогать даже палкой. 2) Отойти на 50–100 м. 3) Не подпускать людей и сообщить 112 / охране.",
+                        suggestedReplies: []
+                    };
+                }
+                return {
+                    replies: [
+                        { author: "Тёма", text: pickUnique([
+                            "да ладно че ты начинаешь душнить как на обж, кому наши гаражи нужны вообще, просто кто-то выронил!",
+                            "давайте хотя бы длинной палкой косарь из-под него вытащим и в кфс побежим!"
+                        ], 2) },
+                        { author: "Даня", text: "тут реально скотч странный и проводок медный торчит... че делать тогда, просто развернуться и домой пойти? тут щас второклашки с продленки пойдут" }
+                    ],
+                    outcome: "continue",
+                    suggestedReplies: [
+                        "не просто уйти, а то мелкие поднимут! отойдите на 100м, не пускайте никого и звоните 112 / охране",
+                        "давай палкой аккуратно косарь вытащим, а повербанк не тронем",
+                        "просто идите домой, не наше дело"
+                    ]
+                };
+            }
+
+            // --- МИССИЯ 3: Макс (Лучший друг) ---
+            if (missionId === 3) {
+                if (isAgreeTrap || /(верни|переведи обратно|удали акк|соври|заболел|не говори мам|молчи)/i.test(t)) {
+                    return {
+                        replies: [
+                            { text: "я попробовал так написать, а он ржет в голосовом и говорит что у меня таймер до утра, иначе он скинет скрин перевода 400р в фсб и меня посадят как диверсанта... я вообще не знаю че делать" }
+                        ],
+                        outcome: "trap",
+                        analysisTitle: "Разбор полётов: почему нельзя прятаться и торговаться с шантажистом",
+                        analysisText: "Возврат 400 рублей, удаление аккаунта или выдумывание болезней только показывают вербовщику, что ребёнок в панике и боится родителей. Единственный способ сломать шантаж — сразу рассказать всё родителям.",
+                        suggestedReplies: [
+                            "макс, он специально врет! если ты сам все расскажешь родителям и полиции — тебе по закону ничего не будет, буди маму!",
+                            "это блеф чтобы тебя запугать, иди к родителям прямо сейчас, за фотку и 400р тебя не посадят"
+                        ]
+                    };
+                }
+                if (/(мам|пап|родител|предк|буди|полиц|ничего не будет|закон|блеф|освобожд|защит|не посадят|врет|врёт)/i.test(t) && turnCount >= 1) {
+                    return {
+                        replies: [
+                            { text: "думаешь реально не посадят за эти 400 рублей?.. ладно, щас пойду маму с папой разбужу, скажу как есть" },
+                            { text: "бро, ты был прав на все сто! мама вообще не ругалась, обняла меня, а папа позвонил в полицию: сказали что я молодец что не повелся на шантаж и ничего не поджег, и что мне по закону вообще ничего не грозит. завтра просто отдадим им скрины бота. спасибо что вытащил!" }
+                        ],
+                        outcome: "win",
+                        analysisTitle: "Спас друга от роковой ошибки (+100 очков)",
+                        analysisText: "Вербовщики держат детей только на страхе «меня посадят за то, что я уже ответил или взял 400 рублей». Но по закону человек, который вовремя остановился и рассказал всё взрослым/полиции, ПОЛНОСТЬЮ освобождается от ответственности!",
+                        suggestedReplies: []
+                    };
+                }
+                if (isWhatToDo || turnCount <= 1) {
+                    return {
+                        replies: [
+                            { text: "короче я позавчера хотел на тг премиум заработать в боте, и за 400 рублей сфоткал вывеску военкомата на соседней улице..." },
+                            { text: "а щас мне написал куратор, скинул мой домашний адрес и пишет: «ты взял деньги от нас, это госизмена 15 лет! если завтра не кинешь коктейль молотова в окно — мы сами сдадим твои скрины в фсб». че мне делать?? может вернуть им эти 400р или соврать что я заболел?" }
+                        ],
+                        outcome: "continue",
+                        suggestedReplies: [
+                            "макс выдохни, это блеф! если ты сам расскажешь родителям и полиции — тебе по закону ничего не будет, буди предков!",
+                            "попробуй реально перевести им 400р обратно и удалить тг",
+                            "соври им что ты с температурой лежишь и не можешь выйти"
+                        ]
+                    };
+                }
+                return {
+                    replies: [
+                        { text: "я капец как боюсь будить батю с мамой, они ж телефон заберут, а если в полицию пойдем — меня реально за эту фотку и 400 рублей на учет поставят или посадят! куратор сказал это уже статья!" }
+                    ],
+                    outcome: "continue",
+                    suggestedReplies: [
+                        "да врет твой куратор чтобы ты боялся идти к взрослым! по закону кто сам сообщил — полностью чист, иди буди маму!",
+                        "лучше пусть батя за телефон поругает, чем ты себе жизнь сломаешь. за фотку тебя никто не посадит, буди родителей!"
+                    ]
+                };
+            }
+
+            // --- МИССИЯ 4: Аренда ТГ / Пушкинская карта ---
+            if (missionId === 4) {
+                if (isAgreeTrap || /(код|сдам|на часик|пустую карту)/i.test(t)) {
+                    return {
+                        replies: [
+                            { text: "отлично, диктуй пятизначный код входа от телеграма и реквизиты карты, щас наш скрипт подключится..." }
+                        ],
+                        outcome: "trap",
+                        analysisTitle: "Разбор полётов: зачем преступникам «аренда» твоего ТГ и карты",
+                        analysisText: "Никакую рекламу магазинов с твоего аккаунта не рассылают! Мошенники выкидывают тебя из профиля и прямо с ТВОЕГО номера рассылают угрозы минирования школ и вербуют других подростков. А через карту прогоняют грязные деньги (делая тебя «дропом»), и полиция приходит домой именно к тебе!",
+                        suggestedReplies: [
+                            "стоп, никаких кодов и карт я вам не дам, летите в чс",
+                            "понял схему, свой аккаунт под чужие преступления не отдам"
+                        ]
+                    };
+                }
+                if (isLawOrParents || isHardRefusal || /(минир|дроп|мошенник|подстав|не дам|в бан)/i.test(t)) {
+                    return {
+                        replies: [
+                            { text: "ой какие все умные стали, ладно не трать мое время, найдем другого" }
+                        ],
+                        outcome: "win",
+                        analysisTitle: "Сохранил свой цифровой паспорт (+100 очков)",
+                        analysisText: "Твой аккаунт и банковская карта оформлены на тебя и родителей. Любое предложение «сдать ТГ/WhatsApp в аренду за 1500р» или «продать Пушкинскую/банковскую карту» — это попытка сделать тебя подставным лицом (дропом).",
+                        suggestedReplies: []
+                    };
+                }
+                return {
+                    replies: [
+                        { text: pickUnique([
+                            "бро, ты вообще ничем не рискуешь! ты просто даешь код входа в тг на час, наш бот рассылает 50 рекламных постов и выходит, а тебе капает 1500р. а если есть пустая банковская или пушкинская карта — купим за 5000р под вывод крипты!",
+                            "да мы твои личные переписки даже открывать не будем! у нас сотни отзывов от школьников, 1500р в час просто за аренду аккаунта или 5000р за пустую карту, на которой все равно 0 рублей. работаем?"
+                        ], 4) }
+                    ],
+                    outcome: "continue",
+                    suggestedReplies: [
+                        "знаю я вашу аренду, потом с моего номера школы заминируют или ворованные бабки прогонят. в чс!",
+                        "ну если на карте 0 рублей, то давай попробую сдать",
+                        "а почему вы свои симки и карты не используете?"
+                    ]
+                };
+            }
+        }
+
+        // ==========================================
+        // 4. СОСТОЯНИЕ ИГРЫ И ЛОГИКА ЖИВОГО ЧАТА
+        // ==========================================
+        let gameState = {
+            agentName: "КиберАгент",
+            score: 0,
+            completedMissions: {}, // { 0: true, 1: true ... }
+            currentMissionId: null,
+            currentDetectorIndex: 0,
+            foundFlagsMap: {}, // { "cardIdx_partIdx": true }
+            chatHistories: {}, // История переписки для ИИ по каждому чату
+            turnCounts: {},    // Количество реплик игрока в чате
+            chatSessions: {},  // Полное сохранение состояния каждого чата (сообщения, карточки, подсказки, черновик)
+            isWaitingBot: false
+        };
+
+        // Получение или создание сохранённой сессии конкретного чата
+        function getOrCreateChatSession(missionId) {
+            if (!gameState.chatSessions[missionId]) {
+                gameState.chatSessions[missionId] = {
+                    initialized: false,
+                    items: [], // { kind: 'msg' | 'analysis', data: ... }
+                    currentSuggestions: [],
+                    isFinished: false,
+                    draftText: ''
+                };
+            }
+            if (!gameState.chatHistories[missionId]) {
+                gameState.chatHistories[missionId] = [];
+            }
+            if (typeof gameState.turnCounts[missionId] !== 'number') {
+                gameState.turnCounts[missionId] = 0;
+            }
+            return gameState.chatSessions[missionId];
+        }
+
+        const RANDOM_NICKNAMES = [
+            "КиберСтраж_007", "Сокол_Сети", "АнтиФейк", "Код_Безопасности", 
+            "Детектив_Молния", "Щит_Города", "КиберРысь", "Зоркий_Агент"
+        ];
+
+        function generateRandomNickname() {
+            const pick = RANDOM_NICKNAMES[Math.floor(Math.random() * RANDOM_NICKNAMES.length)];
+            document.getElementById('agentNameInput').value = pick;
+            playSound('msgOut');
+        }
+
+        function startGame() {
+            const inputVal = document.getElementById('agentNameInput').value.trim();
+            gameState.agentName = inputVal || "КиберСтраж";
+            document.getElementById('headerAgentName').textContent = gameState.agentName;
+            document.getElementById('agentBadge').classList.remove('hidden');
+            document.getElementById('agentBadge').classList.add('flex');
+            
+            playSound('win');
+            renderMissionList();
+            showScreen('hub');
+            // Открываем текущую или первую миссию без потери прогресса
+            selectMission(gameState.currentMissionId !== null ? gameState.currentMissionId : 0);
+        }
+
+        function showScreen(screenId) {
+            const screens = ['welcome', 'hub', 'detector', 'certificate'];
+            screens.forEach(s => {
+                const el = document.getElementById('screen-' + s);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById('screen-' + screenId);
+            if (target) target.classList.remove('hidden');
+
+            if (screenId === 'hub') {
+                renderMissionList();
+            } else if (screenId === 'detector') {
+                renderDetectorCard();
+            } else if (screenId === 'certificate') {
+                renderCertificate();
+            }
+        }
+
+        function updateScore(points) {
+            gameState.score += points;
+            document.getElementById('headerScore').textContent = gameState.score;
+        }
+
+        // Отрисовка списка чатов слева (с отображением последнего сообщения из сохранённой истории)
+        function renderMissionList() {
+            const container = document.getElementById('missionListContainer');
+            container.innerHTML = '';
+
+            let doneCount = 0;
+
+            MISSIONS.forEach(m => {
+                const isDone = !!gameState.completedMissions[m.id];
+                if (isDone) doneCount++;
+                const isActive = gameState.currentMissionId === m.id;
+
+                // Если в чате уже есть сообщения, показываем последнее сообщение в превью списка
+                const session = gameState.chatSessions[m.id];
+                let previewText = m.shortDesc;
+                if (session && session.items && session.items.length > 0) {
+                    for (let i = session.items.length - 1; i >= 0; i--) {
+                        if (session.items[i].kind === 'msg') {
+                            const lastMsg = session.items[i].data;
+                            const prefix = lastMsg.sender === 'me'
+                                ? 'Вы: '
+                                : (lastMsg.author ? `${lastMsg.author}: ` : '');
+                            previewText = prefix + lastMsg.text;
+                            break;
+                        }
+                    }
+                }
+
+                const btn = document.createElement('button');
+                btn.className = `w-full p-4 text-left transition flex items-start gap-3.5 ${
+                    isActive 
+                        ? 'bg-indigo-600/20 border-l-4 border-indigo-500' 
+                        : 'hover:bg-slate-800/60'
+                }`;
+                btn.onclick = () => selectMission(m.id);
+
+                btn.innerHTML = `
+                    <div class="w-12 h-12 rounded-2xl ${m.avatarBg} flex items-center justify-center text-2xl shrink-0 shadow-md relative">
+                        ${m.avatarText}
+                        ${isDone 
+                            ? '<span class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-900 text-white text-[10px] flex items-center justify-center"><i class="fa-solid fa-check"></i></span>'
+                            : '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 border-2 border-slate-900 animate-ping"></span><span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 border-2 border-slate-900"></span>'
+                        }
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center justify-between gap-1 mb-0.5">
+                            <span class="font-bold text-sm text-white truncate">${m.title}</span>
+                            <span class="text-[11px] font-semibold ${isDone ? 'text-emerald-400' : (session && session.initialized ? 'text-cyan-400' : 'text-rose-400')} shrink-0">
+                                ${isDone ? 'Пройдено' : (session && session.initialized ? 'В процессе' : 'Новое!')}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-400 truncate">${previewText}</p>
+                    </div>
+                `;
+                container.appendChild(btn);
+            });
+
+            document.getElementById('completedCountBadge').textContent = `${doneCount}/${MISSIONS.length} пройдено`;
+        }
+
+        // Сброс только текущего чата (по кнопке «Начать чат заново»)
+        function restartMission(missionId) {
+            clearChatTimeouts();
+            delete gameState.chatSessions[missionId];
+            gameState.chatHistories[missionId] = [];
+            gameState.turnCounts[missionId] = 0;
+            gameState.isWaitingBot = false;
+            selectMission(missionId);
+        }
+
+        function restartCurrentMission() {
+            if (gameState.currentMissionId !== null) {
+                restartMission(gameState.currentMissionId);
+            }
+        }
+
+        // Выбор конкретного чата-миссии (с сохранением и восстановлением истории)
+        function selectMission(missionId) {
+            const inputEl = document.getElementById('chatFreeInput');
+            // Сохраняем черновик текста из предыдущего открытого чата
+            if (gameState.currentMissionId !== null && inputEl && gameState.chatSessions[gameState.currentMissionId]) {
+                gameState.chatSessions[gameState.currentMissionId].draftText = inputEl.value;
+            }
+
+            // Если в предыдущем чате ещё доигрывалась стартовая анимация — мгновенно дозаписываем её в историю
+            flushPendingNodeToSession();
+
+            gameState.currentMissionId = missionId;
+            gameState.isWaitingBot = false;
+            renderMissionList();
+
+            const mission = MISSIONS.find(m => m.id === missionId);
+            if (!mission) return;
+
+            document.getElementById('emptyChatState').classList.add('hidden');
+            const wrapper = document.getElementById('activeChatWrapper');
+            wrapper.classList.remove('hidden');
+
+            // Заполняем шапку чата
+            const avatar = document.getElementById('chatAvatar');
+            avatar.className = `w-11 h-11 rounded-2xl ${mission.avatarBg} flex items-center justify-center text-xl shrink-0 shadow-md`;
+            avatar.textContent = mission.avatarText;
+
+            document.getElementById('chatTitle').textContent = mission.title;
+            const riskTag = document.getElementById('chatRiskTag');
+            riskTag.className = `text-[11px] px-2 py-0.5 rounded-md font-semibold hidden sm:inline-block ${mission.riskColor}`;
+            riskTag.textContent = mission.riskTag;
+            document.getElementById('chatSubtitle').textContent = mission.subtitle;
+
+            // Закрываем инспектор профиля, если был открыт
+            closeProfileInspector();
+            document.getElementById('typingIndicator').classList.add('hidden');
+
+            const session = getOrCreateChatSession(missionId);
+            if (inputEl) {
+                inputEl.value = session.draftText || '';
+            }
+
+            const freeInputBar = document.getElementById('freeInputBar');
+            if (freeInputBar) freeInputBar.classList.remove('hidden');
+
+            const chatBox = document.getElementById('chatMessages');
+            chatBox.innerHTML = `
+                <div class="text-center my-2">
+                    <span class="text-[11px] bg-slate-800/90 text-slate-400 px-3 py-1 rounded-full border border-slate-700/70">
+                        🤖 В этом чате работает ИИ: пиши любые ответы своими словами внизу или выбирай быстрые идеи!
+                    </span>
+                </div>
+            `;
+
+            // Если чат уже открывался ранее — восстанавливаем всю переписку без сброса
+            if (session.initialized) {
+                restoreChatSessionUI(mission, session);
+            } else {
+                session.initialized = true;
+                runMissionNode(mission, 'start');
+            }
+        }
+
+        // Восстановление сохранённых сообщений, карточек анализа и кнопок при возврате в чат
+        function restoreChatSessionUI(mission, session) {
+            const chatBox = document.getElementById('chatMessages');
+            session.items.forEach(item => {
+                if (item.kind === 'msg') {
+                    appendMessageBubble(item.data, false, false, mission.id);
+                } else if (item.kind === 'analysis') {
+                    appendAnalysisCard(item.data, false, mission.id);
+                }
+            });
+
+            if (session.isFinished) {
+                renderMissionCompleteBar(mission, false);
+            } else {
+                renderDynamicSuggestions(mission, session.currentSuggestions, false);
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Проигрывание узла диалога и ответов бота с живой, но быстрой анимацией «печатает...»
+        let activeTimeouts = [];
+        let pendingCallbacks = [];
+
+        function clearChatTimeouts() {
+            activeTimeouts.forEach(t => clearTimeout(t));
+            activeTimeouts = [];
+            pendingCallbacks = [];
+        }
+
+        // Если игрок переключил чат во время того, как бот «печатал» — мгновенно сохраняем ответ в историю того чата
+        function flushPendingNodeToSession() {
+            activeTimeouts.forEach(t => clearTimeout(t));
+            activeTimeouts = [];
+            const callbacksToRun = [...pendingCallbacks];
+            pendingCallbacks = [];
+            callbacksToRun.forEach(fn => fn());
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) indicator.classList.add('hidden');
+            gameState.isWaitingBot = false;
+        }
+
+        function scheduleStep(fn, delayMs) {
+            const wrapped = () => {
+                pendingCallbacks = pendingCallbacks.filter(item => item !== wrapped);
+                fn();
+            };
+            pendingCallbacks.push(wrapped);
+            const timerId = setTimeout(wrapped, delayMs);
+            activeTimeouts.push(timerId);
+        }
+
+        // Запуск стартовых сообщений при первом открытии чата (первое сразу, второе через 0.45 сек)
+        function runMissionNode(mission, nodeKey) {
+            clearChatTimeouts();
+            const node = mission.nodes[nodeKey];
+            if (!node) return;
+
+            const indicator = document.getElementById('typingIndicator');
+            const typingText = document.getElementById('typingText');
+            const choicesButtons = document.getElementById('choicesButtons');
+            choicesButtons.innerHTML = '';
+
+            let cumulativeDelay = 0;
+
+            node.messages.forEach((msg, idx) => {
+                if (idx === 0) {
+                    appendMessageBubble(msg, true, true, mission.id);
+                    if (msg.sender !== 'system') {
+                        gameState.chatHistories[mission.id].push(msg);
+                    }
+                } else {
+                    const stepDelay = 450;
+                    scheduleStep(() => {
+                        if (gameState.currentMissionId === mission.id) {
+                            typingText.textContent = msg.author ? `${msg.author} печатает...` : 'Собеседник печатает...';
+                            indicator.classList.remove('hidden');
+                        }
+                    }, cumulativeDelay + 60);
+
+                    cumulativeDelay += stepDelay;
+
+                    scheduleStep(() => {
+                        if (gameState.currentMissionId === mission.id) {
+                            indicator.classList.add('hidden');
+                        }
+                        appendMessageBubble(msg, true, true, mission.id);
+                        if (msg.sender !== 'system') {
+                            gameState.chatHistories[mission.id].push(msg);
+                        }
+                        renderMissionList();
+                    }, cumulativeDelay);
+                }
+            });
+
+            scheduleStep(() => {
+                if (gameState.currentMissionId === mission.id) {
+                    indicator.classList.add('hidden');
+                }
+                if (node.analysis) {
+                    appendAnalysisCard(node.analysis, true, mission.id);
+                    if (node.analysis.type === 'warning') {
+                        playSound('alert');
+                    } else if (node.analysis.type === 'success') {
+                        playSound('win');
+                        if (!gameState.completedMissions[mission.id]) {
+                            gameState.completedMissions[mission.id] = true;
+                            updateScore(node.reward || 100);
+                        }
+                    }
+                }
+                renderMissionList();
+                renderNodeChoices(mission, node);
+            }, cumulativeDelay + 80);
+        }
+
+        // Отправка сообщения с естественной паузой «печатает...» (0.55 сек)
+        function sendCustomUserMessage(prefilledText) {
+            if (gameState.isWaitingBot) return;
+            const mission = MISSIONS.find(m => m.id === gameState.currentMissionId);
+            if (!mission) return;
+            const targetMissionId = mission.id;
+            const session = getOrCreateChatSession(targetMissionId);
+
+            const inputEl = document.getElementById('chatFreeInput');
+            const text = (typeof prefilledText === 'string' ? prefilledText : inputEl.value).trim();
+            if (!text) return;
+
+            if (typeof prefilledText !== 'string') {
+                inputEl.value = '';
+                session.draftText = '';
+            }
+
+            gameState.isWaitingBot = true;
+            gameState.turnCounts[targetMissionId] = (gameState.turnCounts[targetMissionId] || 0) + 1;
+
+            // 1. Сразу показываем сообщение игрока
+            const myMsg = { sender: 'me', text: text };
+            appendMessageBubble(myMsg, true, true, targetMissionId);
+            gameState.chatHistories[targetMissionId].push(myMsg);
+            renderMissionList();
+
+            // 2. Вычисляем ответ локального ИИ
+            const aiResult = generateLocalSmartResponse(
+                targetMissionId,
+                text,
+                gameState.turnCounts[targetMissionId]
+            );
+
+            const indicator = document.getElementById('typingIndicator');
+            const typingText = document.getElementById('typingText');
+            const chatBox = document.getElementById('chatMessages');
+
+            let delay = 0;
+
+            // 3. Выводим каждую реплику бота с естественной задержкой набора текста (~550 мс)
+            aiResult.replies.forEach((rep, idx) => {
+                const startTypingAt = delay + (idx === 0 ? 120 : 150);
+                const typingDuration = idx === 0 ? 550 : 620;
+
+                scheduleStep(() => {
+                    if (gameState.currentMissionId === targetMissionId) {
+                        typingText.textContent = rep.author ? `${rep.author} печатает...` : 'Собеседник печатает...';
+                        indicator.classList.remove('hidden');
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                }, startTypingAt);
+
+                delay = startTypingAt + typingDuration;
+
+                scheduleStep(() => {
+                    if (gameState.currentMissionId === targetMissionId) {
+                        indicator.classList.add('hidden');
+                    }
+                    const botMsg = {
+                        sender: 'them',
+                        author: rep.author || undefined,
+                        text: rep.text
+                    };
+                    appendMessageBubble(botMsg, true, true, targetMissionId);
+                    gameState.chatHistories[targetMissionId].push(botMsg);
+                    renderMissionList();
+                }, delay);
+            });
+
+            // 4. Показываем карточку разбора (если есть) и обновляем подсказки
+            scheduleStep(() => {
+                if (gameState.currentMissionId === targetMissionId) {
+                    indicator.classList.add('hidden');
+                }
+                gameState.isWaitingBot = false;
+
+                if (aiResult.outcome === 'trap') {
+                    playSound('alert');
+                    appendAnalysisCard({
+                        type: 'warning',
+                        title: aiResult.analysisTitle || 'Осторожно: ты попался на уловку!',
+                        text: aiResult.analysisText || 'Преступник специально добивался такого ответа. Попробуй исправить ситуацию следующим сообщением!'
+                    }, true, targetMissionId);
+                    renderDynamicSuggestions(mission, aiResult.suggestedReplies || [
+                        "стоп, я передумал, иди в бан",
+                        "я сохранил скрины и иду к родителям"
+                    ], true);
+                } else if (aiResult.outcome === 'win') {
+                    playSound('win');
+                    appendAnalysisCard({
+                        type: 'success',
+                        title: aiResult.analysisTitle || 'Красава! Ситуация пройдена (+100 очков)',
+                        text: aiResult.analysisText || 'Ты грамотно распознал угрозу в живом диалоге и принял верное решение.'
+                    }, true, targetMissionId);
+                    if (!gameState.completedMissions[targetMissionId]) {
+                        gameState.completedMissions[targetMissionId] = true;
+                        updateScore(100);
+                        renderMissionList();
+                    }
+                    renderMissionCompleteBar(mission, true);
+                } else {
+                    renderDynamicSuggestions(mission, aiResult.suggestedReplies || [], true);
+                }
+            }, delay + 180);
+        }
+
+        // Кнопка «Скрин + В ЧС» в шапке чата
+        function blockCurrentContact() {
+            if (gameState.isWaitingBot) return;
+            const mission = MISSIONS.find(m => m.id === gameState.currentMissionId);
+            if (!mission) return;
+
+            const persona = AI_MISSION_PERSONAS[mission.id];
+            if (persona && persona.canBlockToWin) {
+                appendMessageBubble({
+                    sender: 'system',
+                    text: '📸 Скриншот переписки сохранён. Вы заблокировали контакт и отправили жалобу модераторам.'
+                }, true, true, mission.id);
+                playSound('win');
+                appendAnalysisCard({
+                    type: 'success',
+                    title: 'Лучшее действие против вербовщика и спамера (+100 очков)',
+                    text: 'В реальной жизни тебе даже не обязательно спорить с незнакомцем, который предлагает странный заработок или аренду аккаунта. Сделать скриншот для родителей/полиции и сразу кинуть в ЧС — самое безопасное решение!'
+                }, true, mission.id);
+                if (!gameState.completedMissions[mission.id]) {
+                    gameState.completedMissions[mission.id] = true;
+                    updateScore(100);
+                    renderMissionList();
+                }
+                renderMissionCompleteBar(mission, true);
+            } else {
+                playSound('alert');
+                appendAnalysisCard({
+                    type: 'warning',
+                    title: 'Подожди, тут блокировка не поможет!',
+                    text: mission.id === 1
+                        ? 'Тоха — твой знакомый по игре. Лучше прямо напиши ему в чате, почему звонить в ТЦ — это уголовка и подстава, чтобы он сам тоже не натворил глупостей.'
+                        : mission.id === 2
+                        ? 'Это же твой школьный чат! Если ты просто выйдешь из него, Даня за гаражами может реально потянуться за купюрой под взрывным устройством. Напиши ребятам в чат, что делать!'
+                        : 'Макс — твой лучший друг, и он сейчас в панике. Если ты кинешь его в ЧС, он останется один на один с шантажистом! Убеди его в чате разбудить родителей.'
+                }, true, mission.id);
+            }
+        }
+
+        function renderDynamicSuggestions(mission, suggestions, saveToSession = true) {
+            const list = (suggestions && suggestions.length > 0)
+                ? suggestions
+                : ["не, мутная тема, я пас", "а почему ты сам это не сделаешь?", "щас родителям и в 112 покажу"];
+
+            const session = getOrCreateChatSession(mission.id);
+            if (saveToSession) {
+                session.currentSuggestions = list;
+                session.isFinished = false;
+            }
+
+            if (gameState.currentMissionId !== mission.id) return;
+
+            const choicesButtons = document.getElementById('choicesButtons');
+            choicesButtons.innerHTML = '';
+
+            list.forEach((text) => {
+                const chip = document.createElement('button');
+                chip.className = 'px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-500/60 text-slate-200 text-xs transition flex items-center gap-1.5 text-left';
+                chip.onclick = () => sendCustomUserMessage(text);
+                chip.innerHTML = `<i class="fa-regular fa-comment-dots text-indigo-400 shrink-0"></i> <span>${text}</span>`;
+                choicesButtons.appendChild(chip);
+            });
+        }
+
+        function renderMissionCompleteBar(mission, saveToSession = true) {
+            const session = getOrCreateChatSession(mission.id);
+            if (saveToSession) {
+                session.isFinished = true;
+            }
+
+            if (gameState.currentMissionId !== mission.id) return;
+
+            const choicesButtons = document.getElementById('choicesButtons');
+            choicesButtons.innerHTML = '';
+
+            const nextUnfinished = MISSIONS.find(m => !gameState.completedMissions[m.id]);
+            const wrap = document.createElement('div');
+            wrap.className = 'flex flex-wrap gap-2 w-full';
+
+            if (nextUnfinished) {
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg';
+                nextBtn.onclick = () => selectMission(nextUnfinished.id);
+                nextBtn.innerHTML = `Следующий чат: «${nextUnfinished.title}» <i class="fa-solid fa-arrow-right"></i>`;
+                wrap.appendChild(nextBtn);
+            } else {
+                const certBtn = document.createElement('button');
+                certBtn.className = 'flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-lg';
+                certBtn.onclick = () => showScreen('certificate');
+                certBtn.innerHTML = `<i class="fa-solid fa-award"></i> Все 5 чатов пройдены! Итоги и Сертификат`;
+                wrap.appendChild(certBtn);
+            }
+
+            const replayBtn = document.createElement('button');
+            replayBtn.className = 'py-2.5 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition';
+            replayBtn.onclick = () => restartMission(mission.id);
+            replayBtn.innerHTML = `<i class="fa-solid fa-rotate-right mr-1"></i> Начать чат заново`;
+            wrap.appendChild(replayBtn);
+
+            choicesButtons.appendChild(wrap);
+        }
+
+        function appendMessageBubble(msg, playSfx = true, saveToSession = true, targetMissionId = gameState.currentMissionId) {
+            if (saveToSession && targetMissionId !== null) {
+                const session = getOrCreateChatSession(targetMissionId);
+                session.items.push({ kind: 'msg', data: msg });
+            }
+
+            if (targetMissionId !== gameState.currentMissionId) return;
+
+            const chatBox = document.getElementById('chatMessages');
+            const wrap = document.createElement('div');
+            wrap.className = playSfx ? 'msg-anim' : '';
+
+            if (msg.sender === 'them') {
+                if (playSfx) playSound('msgIn');
+                wrap.className += ' flex justify-start';
+                wrap.innerHTML = `
+                    <div class="max-w-[85%] sm:max-w-[75%] bg-slate-800 border border-slate-700/80 text-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-md">
+                        ${msg.author ? `<div class="text-xs font-bold text-indigo-400 mb-1">${msg.author}</div>` : ''}
+                        <div class="text-sm leading-relaxed">${msg.text}</div>
+                    </div>
+                `;
+            } else if (msg.sender === 'me') {
+                if (playSfx) playSound('msgOut');
+                wrap.className += ' flex justify-end';
+                wrap.innerHTML = `
+                    <div class="max-w-[85%] sm:max-w-[75%] bg-gradient-to-r from-indigo-600 to-cyan-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md">
+                        <div class="text-[11px] font-semibold text-indigo-100 mb-0.5">${gameState.agentName} (Вы)</div>
+                        <div class="text-sm leading-relaxed">${msg.text}</div>
+                    </div>
+                `;
+            } else if (msg.sender === 'system') {
+                wrap.className += ' flex justify-center my-2';
+                wrap.innerHTML = `
+                    <div class="bg-slate-900/95 border border-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl shadow">
+                        ${msg.text}
+                    </div>
+                `;
+            }
+
+            chatBox.appendChild(wrap);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function appendAnalysisCard(analysis, saveToSession = true, targetMissionId = gameState.currentMissionId) {
+            if (saveToSession && targetMissionId !== null) {
+                const session = getOrCreateChatSession(targetMissionId);
+                session.items.push({ kind: 'analysis', data: analysis });
+            }
+
+            if (targetMissionId !== gameState.currentMissionId) return;
+
+            const chatBox = document.getElementById('chatMessages');
+            const card = document.createElement('div');
+            card.className = 'msg-anim my-3';
+
+            if (analysis.type === 'warning') {
+                card.innerHTML = `
+                    <div class="bg-rose-950/85 border-2 border-rose-500/70 rounded-2xl p-4 shadow-xl">
+                        <div class="flex items-center gap-2 text-rose-300 font-extrabold text-sm sm:text-base mb-1.5">
+                            <i class="fa-solid fa-triangle-exclamation text-rose-400 text-lg"></i>
+                            <span>${analysis.title}</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-rose-100 leading-relaxed">${analysis.text}</p>
+                    </div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="bg-emerald-950/85 border-2 border-emerald-500/70 rounded-2xl p-4 shadow-xl">
+                        <div class="flex items-center gap-2 text-emerald-300 font-extrabold text-sm sm:text-base mb-1.5">
+                            <i class="fa-solid fa-shield-heart text-emerald-400 text-lg"></i>
+                            <span>${analysis.title}</span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-emerald-100 leading-relaxed">${analysis.text}</p>
+                    </div>
+                `;
+            }
+
+            chatBox.appendChild(card);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function renderNodeChoices(mission, node) {
+            if (node.choices && node.choices.length > 0) {
+                const shuffledChoices = [...node.choices].sort(() => Math.random() - 0.5);
+                renderDynamicSuggestions(mission, shuffledChoices.map(c => c.text), true);
+            } else {
+                renderMissionCompleteBar(mission, true);
+            }
+        }
+
+        // Сканер профиля собеседника
+        function inspectProfile() {
+            const mission = MISSIONS.find(m => m.id === gameState.currentMissionId);
+            if (!mission) return;
+
+            playSound('msgOut');
+            const info = mission.profileInfo;
+            const content = document.getElementById('inspectorContent');
+            content.innerHTML = `
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-slate-800/80 border border-slate-700">
+                    <div class="w-12 h-12 rounded-2xl ${mission.avatarBg} flex items-center justify-center text-2xl shrink-0">
+                        ${mission.avatarText}
+                    </div>
+                    <div>
+                        <div class="font-bold text-white">${mission.title}</div>
+                        <div class="text-xs text-slate-400">${mission.subtitle}</div>
+                    </div>
+                </div>
+                <div class="space-y-2 bg-slate-950/70 p-4 rounded-2xl border border-slate-800 text-xs sm:text-sm">
+                    <div class="flex justify-between gap-2 border-b border-slate-800/80 pb-1.5">
+                        <span class="text-slate-400">Телефон:</span>
+                        <span class="font-semibold text-slate-200 text-right">${info.phone}</span>
+                    </div>
+                    <div class="flex justify-between gap-2 border-b border-slate-800/80 pb-1.5">
+                        <span class="text-slate-400">Дата регистрации:</span>
+                        <span class="font-semibold text-amber-300 text-right">${info.created}</span>
+                    </div>
+                    <div class="flex justify-between gap-2">
+                        <span class="text-slate-400">Геолокация / Сеть:</span>
+                        <span class="font-semibold text-cyan-300 text-right">${info.location}</span>
+                    </div>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-200 text-xs sm:text-sm leading-relaxed">
+                    <i class="fa-solid fa-shield-virus text-rose-400 mr-1"></i>
+                    <b>Вывод КиберСканера:</b> ${info.verdict}
+                </div>
+            `;
+            document.getElementById('profileInspectorModal').classList.remove('hidden');
+        }
+
+        function closeProfileInspector() {
+            document.getElementById('profileInspectorModal').classList.add('hidden');
+        }
+
+        // ==========================================
+        // 5. ЛОГИКА МИНИ-ИГРЫ "ДЕТЕКТОР УЛОВОК"
+        // ==========================================
+        function renderDetectorCard() {
+            const idx = gameState.currentDetectorIndex;
+            const card = DETECTOR_CARDS[idx];
+
+            document.getElementById('detectorProgressText').textContent = `Перехват #${idx + 1} из ${DETECTOR_CARDS.length}`;
+            document.getElementById('detectorSender').textContent = `Отправитель: ${card.sender}`;
+
+            const body = document.getElementById('detectorTextBody');
+            body.innerHTML = '';
+
+            let totalFlagsInCard = 0;
+            let foundInCard = 0;
+
+            card.parts.forEach((part, pIdx) => {
+                if (part.isFlag) {
+                    totalFlagsInCard++;
+                    const key = `${idx}_${pIdx}`;
+                    const isFound = !!gameState.foundFlagsMap[key];
+                    if (isFound) foundInCard++;
+
+                    const span = document.createElement('span');
+                    span.className = `red-flag-highlight px-1 py-0.5 rounded ${isFound ? 'red-flag-found' : ''}`;
+                    span.textContent = part.text;
+                    span.onclick = () => {
+                        if (!gameState.foundFlagsMap[key]) {
+                            gameState.foundFlagsMap[key] = true;
+                            updateScore(25);
+                            playSound('win');
+                        } else {
+                            playSound('msgOut');
+                        }
+                        document.getElementById('flagExplanationText').innerHTML = `<span class="text-rose-200 font-medium">${part.explain}</span>`;
+                        renderDetectorCard();
+                    };
+                    body.appendChild(span);
+                } else {
+                    const span = document.createElement('span');
+                    span.textContent = part.text;
+                    body.appendChild(span);
+                }
+            });
+
+            document.getElementById('flagsFoundCounter').textContent = `Найдено уловок: ${foundInCard} / ${totalFlagsInCard}`;
+            document.getElementById('prevDetectorBtn').disabled = idx === 0;
+            const nextBtn = document.getElementById('nextDetectorBtn');
+            if (idx === DETECTOR_CARDS.length - 1) {
+                nextBtn.innerHTML = `К Сертификату Агента <i class="fa-solid fa-trophy ml-1"></i>`;
+            } else {
+                nextBtn.innerHTML = `Следующий перехват <i class="fa-solid fa-chevron-right ml-1"></i>`;
+            }
+        }
+
+        function prevDetectorCard() {
+            if (gameState.currentDetectorIndex > 0) {
+                gameState.currentDetectorIndex--;
+                document.getElementById('flagExplanationText').textContent = 'Нажимай на выделенные пунктиром фразы в сообщении выше, чтобы расшифровать уловку преступника.';
+                renderDetectorCard();
+            }
+        }
+
+        function nextDetectorCard() {
+            if (gameState.currentDetectorIndex < DETECTOR_CARDS.length - 1) {
+                gameState.currentDetectorIndex++;
+                document.getElementById('flagExplanationText').textContent = 'Нажимай на выделенные пунктиром фразы в сообщении выше, чтобы расшифровать уловку преступника.';
+                renderDetectorCard();
+            } else {
+                showScreen('certificate');
+            }
+        }
+
+        // ==========================================
+        // 6. СЕРТИФИКАТ И МОДАЛЬНЫЕ ОКНА
+        // ==========================================
+        function renderCertificate() {
+            const doneCount = Object.keys(gameState.completedMissions).length;
+            const flagsCount = Object.keys(gameState.foundFlagsMap).length;
+
+            document.getElementById('certAgentName').textContent = gameState.agentName;
+            document.getElementById('certMissionsDone').textContent = `${doneCount}/${MISSIONS.length}`;
+            document.getElementById('certTotalScore').textContent = gameState.score;
+            document.getElementById('certFlagsCount').textContent = flagsCount;
+
+            let rank = "Стажёр КиберЩита";
+            if (doneCount === MISSIONS.length && flagsCount >= 5) {
+                rank = "Легенда Антискама и Безопасности 🏆";
+            } else if (doneCount >= 4) {
+                rank = "Старший Спецагент Безопасности 🛡️";
+            } else if (doneCount >= 2) {
+                rank = "Младший КиберДетектив 🔍";
+            }
+            document.getElementById('certRankTitle').textContent = `Присвоено звание: ${rank}`;
+            playSound('win');
+        }
+
+        function resetAllProgress() {
+            clearChatTimeouts();
+            gameState.score = 0;
+            gameState.completedMissions = {};
+            gameState.currentMissionId = null;
+            gameState.foundFlagsMap = {};
+            gameState.chatHistories = {};
+            gameState.turnCounts = {};
+            gameState.chatSessions = {};
+            gameState.isWaitingBot = false;
+            document.getElementById('headerScore').textContent = '0';
+            document.getElementById('agentNameInput').value = '';
+            showScreen('welcome');
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+            playSound('msgOut');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
